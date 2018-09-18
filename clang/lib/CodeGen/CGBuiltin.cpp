@@ -4055,6 +4055,7 @@ static Value *EmitTargetArchBuiltinExpr(CodeGenFunction *CGF,
   case llvm::Triple::thumbeb:
     return CGF->EmitARMBuiltinExpr(BuiltinID, E, Arch);
   case llvm::Triple::aarch64:
+  case llvm::Triple::aarch64_32:
   case llvm::Triple::aarch64_be:
     return CGF->EmitAArch64BuiltinExpr(BuiltinID, E, Arch);
   case llvm::Triple::x86:
@@ -5477,7 +5478,8 @@ Value *CodeGenFunction::EmitCommonNeonBuiltinExpr(
     llvm::Type *PTy = llvm::PointerType::getUnqual(VTy->getVectorElementType());
     // TODO: Currently in AArch32 mode the pointer operand comes first, whereas
     // in AArch64 it comes last. We may want to stick to one or another.
-    if (Arch == llvm::Triple::aarch64 || Arch == llvm::Triple::aarch64_be) {
+    if (Arch == llvm::Triple::aarch64 || Arch == llvm::Triple::aarch64_be ||
+        Arch == llvm::Triple::aarch64_32) {
       llvm::Type *Tys[2] = { VTy, PTy };
       std::rotate(Ops.begin(), Ops.begin() + 1, Ops.end());
       return EmitNeonCall(CGM.getIntrinsic(LLVMIntrinsic, Tys), Ops, "");
