@@ -1672,6 +1672,15 @@ void SelectionDAGBuilder::visitRet(const ReturnInst &I) {
         if (RetInReg)
           Flags.setInReg();
 
+        if (I.getOperand(0)->getType()->isPointerTy())
+          Flags.setPointer();
+
+        if (NeedsRegBlock) {
+          Flags.setInConsecutiveRegs();
+          if (j == NumValues - 1)
+            Flags.setInConsecutiveRegsLast();
+        }
+
         // Propagate extension type if any
         if (ExtendKind == ISD::SIGN_EXTEND)
           Flags.setSExt();
@@ -8564,9 +8573,12 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
                                                        CLI.CallConv, VT);
       for (unsigned i = 0; i != NumRegs; ++i) {
         ISD::InputArg MyFlags;
+        MyFlags.Flags = Flags;
         MyFlags.VT = RegisterVT;
         MyFlags.ArgVT = VT;
         MyFlags.Used = CLI.IsReturnValueUsed;
+        if (CLI.RetTy->isPointerTy())
+          MyFlags.Flags.setPointer();
         if (CLI.RetSExt)
           MyFlags.Flags.setSExt();
         if (CLI.RetZExt)
@@ -8617,6 +8629,8 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
       // specify the alignment it wants.
       unsigned OriginalAlignment = getABIAlignmentForCallingConv(ArgTy, DL);
 
+      if (Args[i].Ty->isPointerTy())
+        Flags.setPointer();
       if (Args[i].IsZExt)
         Flags.setZExt();
       if (Args[i].IsSExt)
@@ -9105,6 +9119,8 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
       unsigned OriginalAlignment =
           TLI->getABIAlignmentForCallingConv(ArgTy, DL);
 
+      if (Arg.getType()->isPointerTy())
+        Flags.setPointer();
       if (Arg.hasAttribute(Attribute::ZExt))
         Flags.setZExt();
       if (Arg.hasAttribute(Attribute::SExt))

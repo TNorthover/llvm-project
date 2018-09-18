@@ -82,6 +82,10 @@ class CCIfVarArg<CCAction A> : CCIf<"State.isVarArg()", A> {}
 /// CCIfNotVarArg - If the current function is not vararg - apply the action
 class CCIfNotVarArg<CCAction A> : CCIf<"!State.isVarArg()", A> {}
 
+/// CCIfPtr - If the top-level parent of the current argument had
+/// pointer type.
+class CCIfPtr<CCAction A> : CCIf<"ArgFlags.isPointer()", A> {}
+
 /// CCAssignToReg - This action matches if there is a register in the specified
 /// list that is still available.  If so, it assigns the value to the first
 /// available register and succeeds.
