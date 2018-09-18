@@ -757,6 +757,7 @@ static void PrintRType(const uint64_t cputype, const unsigned r_type) {
       outs() << arm_r_types[r_type];
       break;
     case MachO::CPU_TYPE_ARM64:
+    case MachO::CPU_TYPE_ARM64_32:
       outs() << arm64_r_types[r_type];
       break;
     default:
@@ -938,7 +939,8 @@ static void PrintRelocationEntries(const MachOObjectFile *O,
           if (cputype == MachO::CPU_TYPE_ARM &&
                    r_type == llvm::MachO::ARM_RELOC_PAIR)
             outs() << format("other_half = 0x%04x\n", (unsigned int)r_address);
-          else if (cputype == MachO::CPU_TYPE_ARM64 &&
+          else if ((cputype == MachO::CPU_TYPE_ARM64 ||
+                    cputype == MachO::CPU_TYPE_ARM64_32) &&
                    r_type == llvm::MachO::ARM64_RELOC_ADDEND)
             outs() << format("addend = 0x%06x\n", (unsigned int)r_symbolnum);
           else {
@@ -2030,6 +2032,17 @@ static void printCPUType(uint32_t cputype, uint32_t cpusubtype) {
     case MachO::CPU_SUBTYPE_ARM64_ALL:
       outs() << "    cputype CPU_TYPE_ARM64\n";
       outs() << "    cpusubtype CPU_SUBTYPE_ARM64_ALL\n";
+      break;
+    default:
+      printUnknownCPUType(cputype, cpusubtype);
+      break;
+    }
+    break;
+  case MachO::CPU_TYPE_ARM64_32:
+    switch (cpusubtype & ~MachO::CPU_SUBTYPE_MASK) {
+    case MachO::CPU_SUBTYPE_ARM64_32_V8:
+      outs() << "    cputype CPU_TYPE_ARM64_32\n";
+      outs() << "    cpusubtype CPU_SUBTYPE_ARM64_V8\n";
       break;
     default:
       printUnknownCPUType(cputype, cpusubtype);
@@ -8179,6 +8192,17 @@ static void PrintMachHeader(uint32_t magic, uint32_t cputype,
         break;
       }
       break;
+    case MachO::CPU_TYPE_ARM64_32:
+      outs() << " ARM64_32";
+      switch (cpusubtype & ~MachO::CPU_SUBTYPE_MASK) {
+      case MachO::CPU_SUBTYPE_ARM64_32_V8:
+        outs() << "        V8";
+        break;
+      default:
+        outs() << format(" %10d", cpusubtype & ~MachO::CPU_SUBTYPE_MASK);
+        break;
+      }
+      break;
     case MachO::CPU_TYPE_POWERPC:
       outs() << "     PPC";
       switch (cpusubtype & ~MachO::CPU_SUBTYPE_MASK) {
@@ -9742,7 +9766,8 @@ static void PrintThreadCommand(MachO::thread_command t, const char *Ptr,
         begin += count * sizeof(uint32_t);
       }
     }
-  } else if (cputype == MachO::CPU_TYPE_ARM64) {
+  } else if (cputype == MachO::CPU_TYPE_ARM64 ||
+             cputype == MachO::CPU_TYPE_ARM64_32) {
     while (begin < end) {
       if (end - begin > (ptrdiff_t)sizeof(uint32_t)) {
         memcpy((char *)&flavor, begin, sizeof(uint32_t));
