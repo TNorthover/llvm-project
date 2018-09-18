@@ -82,7 +82,7 @@ static bool CC_AArch64_Custom_Block(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
   // Try to allocate a contiguous block of registers, each of the correct
   // size to hold one member.
   ArrayRef<MCPhysReg> RegList;
-  if (LocVT.SimpleTy == MVT::i64)
+  if (LocVT.SimpleTy == MVT::i64 || LocVT.SimpleTy == MVT::i32)
     RegList = XRegList;
   else if (LocVT.SimpleTy == MVT::f16)
     RegList = HRegList;
@@ -108,11 +108,24 @@ static bool CC_AArch64_Custom_Block(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
     return true;
 
   unsigned RegResult = State.AllocateRegBlock(RegList, PendingMembers.size());
-  if (RegResult) {
+  if (RegResult && LocVT.SimpleTy != MVT::i32) {
     for (auto &It : PendingMembers) {
       It.convertToReg(RegResult);
       State.addLoc(It);
       ++RegResult;
+    }
+    PendingMembers.clear();
+    return true;
+  } else if (RegResult) {
+    bool UseHigh = false;
+    CCValAssign::LocInfo Info;
+    for (auto &It : PendingMembers) {
+      Info = UseHigh ? CCValAssign::AExtUpper : CCValAssign::ZExt;
+      State.addLoc(CCValAssign::getReg(It.getValNo(), MVT::i32, RegResult,
+                                       MVT::i64, Info));
+      UseHigh = !UseHigh;
+      if (!UseHigh)
+        ++RegResult;
     }
     PendingMembers.clear();
     return true;

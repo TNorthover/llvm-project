@@ -255,6 +255,10 @@ public:
                                      const SelectionDAG &DAG,
                                      unsigned Depth = 0) const override;
 
+  MVT getPointerTy(const DataLayout &DL, uint32_t AS = 0) const override {
+    return MVT::getIntegerVT(64);
+  }
+
   bool targetShrinkDemandedConstant(SDValue Op, const APInt &Demanded,
                                     TargetLoweringOpt &TLO) const override;
 

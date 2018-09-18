@@ -197,8 +197,11 @@ static std::string computeDataLayout(const Triple &TT,
                                      bool LittleEndian) {
   if (Options.getABIName() == "ilp32")
     return "e-m:e-p:32:32-i8:8-i16:16-i64:64-S128";
-  if (TT.isOSBinFormatMachO())
+  if (TT.isOSBinFormatMachO()) {
+    if (TT.getArchName().endswith("_32"))
+      return "e-m:o-p:32:32-i64:64-i128:128-n32:64-S128";
     return "e-m:o-i64:64-i128:128-n32:64-S128";
+  }
   if (TT.isOSBinFormatCOFF())
     return "e-m:w-p:64:64-i32:32-i64:64-i128:128-n32:64-S128";
   if (LittleEndian)
@@ -275,7 +278,8 @@ AArch64TargetMachine::AArch64TargetMachine(const Target &T, const Triple &TT,
   }
 
   // Enable GlobalISel at or below EnableGlobalISelAt0.
-  if (getOptLevel() <= EnableGlobalISelAtO) {
+  if (getOptLevel() <= EnableGlobalISelAtO &&
+      !TT.getArchName().endswith("_32")) {
     setGlobalISel(true);
     setGlobalISelAbort(GlobalISelAbortMode::Disable);
   }
