@@ -242,7 +242,9 @@ bool AArch64RegisterInfo::isConstantPhysReg(unsigned PhysReg) const {
 
 const TargetRegisterClass *
 AArch64RegisterInfo::getPointerRegClass(const MachineFunction &MF,
-                                      unsigned Kind) const {
+                                        unsigned Kind) const {
+  if (MF.getSubtarget<AArch64Subtarget>().isTargetILP32())
+    return &AArch64::GPR32spRegClass;
   return &AArch64::GPR64spRegClass;
 }
 

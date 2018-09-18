@@ -94,6 +94,7 @@ createLocalLazyCallThroughManager(const Triple &T, ExecutionSession &ES,
         inconvertibleErrorCode());
 
   case Triple::aarch64:
+  case Triple::aarch64_32:
     return LocalLazyCallThroughManager::Create<OrcAArch64>(ES,
                                                            ErrorHandlerAddr);
 

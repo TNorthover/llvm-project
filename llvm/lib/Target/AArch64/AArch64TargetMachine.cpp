@@ -160,6 +160,8 @@ extern "C" void LLVMInitializeAArch64Target() {
   RegisterTargetMachine<AArch64leTargetMachine> X(getTheAArch64leTarget());
   RegisterTargetMachine<AArch64beTargetMachine> Y(getTheAArch64beTarget());
   RegisterTargetMachine<AArch64leTargetMachine> Z(getTheARM64Target());
+  RegisterTargetMachine<AArch64leTargetMachine> W(getTheARM64_32Target());
+  RegisterTargetMachine<AArch64leTargetMachine> V(getTheAArch64_32Target());
   auto PR = PassRegistry::getPassRegistry();
   initializeGlobalISel(*PR);
   initializeAArch64A53Fix835769Pass(*PR);
@@ -203,8 +205,11 @@ static std::string computeDataLayout(const Triple &TT,
                                      bool LittleEndian) {
   if (Options.getABIName() == "ilp32")
     return "e-m:e-p:32:32-i8:8-i16:16-i64:64-S128";
-  if (TT.isOSBinFormatMachO())
+  if (TT.isOSBinFormatMachO()) {
+    if (TT.getArch() == Triple::aarch64_32)
+      return "e-m:o-p:32:32-p1:64:64-i64:64-i128:128-n32:64-S128";
     return "e-m:o-i64:64-i128:128-n32:64-S128";
+  }
   if (TT.isOSBinFormatCOFF())
     return "e-m:w-p:64:64-i32:32-i64:64-i128:128-n32:64-S128";
   if (LittleEndian)
@@ -281,7 +286,8 @@ AArch64TargetMachine::AArch64TargetMachine(const Target &T, const Triple &TT,
   }
 
   // Enable GlobalISel at or below EnableGlobalISelAt0.
-  if (getOptLevel() <= EnableGlobalISelAtO) {
+  if (getOptLevel() <= EnableGlobalISelAtO &&
+      TT.getArch() != Triple::aarch64_32) {
     setGlobalISel(true);
     setGlobalISelAbort(GlobalISelAbortMode::Disable);
   }
@@ -403,9 +409,11 @@ TargetPassConfig *AArch64TargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 void AArch64PassConfig::addIRPasses() {
-  // FIXME: check ILP32!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  if (true)
-    addPass(createAArch64PromotePointerPass());
+  if (WatchBitcodeCompatibility) {
+    addPass(createAArch64ARMCompatibilityPass());
+    addPass(createAArch64StretCompatibilityPass());
+    addPass(createAArch64SwiftHackPass());
+  }
 
   // Always expand atomic operations, we don't deal with atomicrmw or cmpxchg
   // ourselves.
@@ -448,6 +456,7 @@ void AArch64PassConfig::addIRPasses() {
     // invariant.
     addPass(createLICMPass());
   }
+
 }
 
 // Pass Pipeline Configuration
@@ -466,6 +475,9 @@ bool AArch64PassConfig::addPreISel() {
                                (EnableGlobalMerge == cl::BOU_UNSET);
     addPass(createGlobalMergePass(TM, 4095, OnlyOptimizeForSize));
   }
+
+  if (TM->getTargetTriple().isArch32Bit())
+    addPass(createAArch64PromotePointerPass());
 
   return false;
 }

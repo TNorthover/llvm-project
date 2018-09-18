@@ -119,7 +119,8 @@ createLocalCompileCallbackManager(const Triple &T, ExecutionSession &ES,
     return make_error<StringError>(
         std::string("No callback manager available for ") + T.str(),
         inconvertibleErrorCode());
-  case Triple::aarch64: {
+  case Triple::aarch64:
+  case Triple::aarch64_32: {
     typedef orc::LocalJITCompileCallbackManager<orc::OrcAArch64> CCMgrT;
     return CCMgrT::Create(ES, ErrorHandlerAddress);
     }
@@ -167,6 +168,7 @@ createLocalIndirectStubsManagerBuilder(const Triple &T) {
       };
 
     case Triple::aarch64:
+    case Triple::aarch64_32:
       return [](){
         return llvm::make_unique<
                        orc::LocalIndirectStubsManager<orc::OrcAArch64>>();

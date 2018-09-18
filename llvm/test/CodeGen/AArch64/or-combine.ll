@@ -28,9 +28,9 @@ define i32 @test_generic(i32 %in, i32 %mask1, i32 %mask2) {
 ; are used more than once.
 define [3 x i32] @test_reuse(i32 %in, i32 %mask1, i32 %mask2) {
 ; CHECK-LABEL: test_reuse:
-; CHECK-DAG: and w1, w0, w1
-; CHECK-DAG: and w2, w0, w2
-; CHECK-DAG: orr w0, w1, w2
+; CHECK-DAG: and [[LO:w[0-9]+]], w0, w1
+; CHECK-DAG: and [[HI:w[0-9]+]], w0, w2
+; CHECK-DAG: orr w0, [[LO]], [[HI]]
 
   %lo = and i32 %in, %mask1
   %hi = and i32 %in, %mask2

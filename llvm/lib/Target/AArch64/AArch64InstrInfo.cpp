@@ -1469,6 +1469,8 @@ bool AArch64InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     return false;
 
   MachineBasicBlock &MBB = *MI.getParent();
+  auto &Subtarget = MBB.getParent()->getSubtarget<AArch64Subtarget>();
+  auto TRI = Subtarget.getRegisterInfo();
   DebugLoc DL = MI.getDebugLoc();
 
   if (MI.getOpcode() == AArch64::CATCHRET) {
@@ -1502,13 +1504,29 @@ bool AArch64InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   const unsigned char MO_NC = AArch64II::MO_NC;
 
   if ((OpFlags & AArch64II::MO_GOT) != 0) {
-    BuildMI(MBB, MI, DL, get(AArch64::LOADgot), Reg)
+    unsigned GOTReg = Reg;
+    if (Subtarget.isTargetILP32())
+      GOTReg = TRI->getMatchingSuperReg(GOTReg, AArch64::sub_32,
+                                        &AArch64::GPR64spRegClass);
+
+    BuildMI(MBB, MI, DL, get(AArch64::LOADgot), GOTReg)
         .addGlobalAddress(GV, 0, OpFlags);
-    BuildMI(MBB, MI, DL, get(AArch64::LDRXui), Reg)
-        .addReg(Reg, RegState::Kill)
-        .addImm(0)
-        .addMemOperand(*MI.memoperands_begin());
+
+    if (Subtarget.isTargetILP32()) {
+      BuildMI(MBB, MI, DL, get(AArch64::LDRWui))
+          .addDef(Reg, RegState::Dead)
+          .addUse(GOTReg, RegState::Kill)
+          .addImm(0)
+          .addMemOperand(*MI.memoperands_begin())
+          .addDef(Reg, RegState::Implicit);
+    } else {
+      BuildMI(MBB, MI, DL, get(AArch64::LDRXui), Reg)
+          .addReg(Reg, RegState::Kill)
+          .addImm(0)
+          .addMemOperand(*MI.memoperands_begin());
+    }
   } else if (TM.getCodeModel() == CodeModel::Large) {
+    assert(!Subtarget.isTargetILP32() && "how can large exist in ILP32?");
     BuildMI(MBB, MI, DL, get(AArch64::MOVZXi), Reg)
         .addGlobalAddress(GV, 0, AArch64II::MO_G0 | MO_NC)
         .addImm(0);
@@ -1535,10 +1553,20 @@ bool AArch64InstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     BuildMI(MBB, MI, DL, get(AArch64::ADRP), Reg)
         .addGlobalAddress(GV, 0, OpFlags | AArch64II::MO_PAGE);
     unsigned char LoFlags = OpFlags | AArch64II::MO_PAGEOFF | MO_NC;
-    BuildMI(MBB, MI, DL, get(AArch64::LDRXui), Reg)
-        .addReg(Reg, RegState::Kill)
-        .addGlobalAddress(GV, 0, LoFlags)
-        .addMemOperand(*MI.memoperands_begin());
+    if (Subtarget.isTargetILP32()) {
+      unsigned Reg32 = TRI->getSubReg(Reg, AArch64::sub_32);
+      BuildMI(MBB, MI, DL, get(AArch64::LDRWui))
+          .addDef(Reg32, RegState::Dead)
+          .addUse(Reg, RegState::Kill)
+          .addGlobalAddress(GV, 0, LoFlags)
+          .addMemOperand(*MI.memoperands_begin())
+          .addDef(Reg, RegState::Implicit);
+    } else {
+      BuildMI(MBB, MI, DL, get(AArch64::LDRXui), Reg)
+          .addReg(Reg, RegState::Kill)
+          .addGlobalAddress(GV, 0, LoFlags)
+          .addMemOperand(*MI.memoperands_begin());
+    }
   }
 
   MBB.erase(MI);
