@@ -1636,6 +1636,10 @@ void SelectionDAGBuilder::visitRet(const ReturnInst &I) {
 
       const Function *F = I.getParent()->getParent();
 
+      bool NeedsRegBlock = TLI.functionArgumentNeedsConsecutiveRegisters(
+          I.getOperand(0)->getType(), F->getCallingConv(),
+          /*IsVarArg*/ false);
+
       ISD::NodeType ExtendKind = ISD::ANY_EXTEND;
       if (F->getAttributes().hasAttribute(AttributeList::ReturnIndex,
                                           Attribute::SExt))
@@ -8505,7 +8509,15 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
     // points into the callers stack frame.
     CLI.IsTailCall = false;
   } else {
+    bool NeedsRegBlock = functionArgumentNeedsConsecutiveRegisters(
+        CLI.RetTy, CLI.CallConv, CLI.IsVarArg);
     for (unsigned I = 0, E = RetTys.size(); I != E; ++I) {
+      ISD::ArgFlagsTy Flags;
+      if (NeedsRegBlock) {
+        Flags.setInConsecutiveRegs();
+        if (I == RetTys.size() - 1)
+          Flags.setInConsecutiveRegsLast();
+      }
       EVT VT = RetTys[I];
       MVT RegisterVT = getRegisterTypeForCallingConv(CLI.RetTy->getContext(),
                                                      CLI.CallConv, VT);
