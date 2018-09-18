@@ -55,7 +55,7 @@ llvm::Triple::ArchType darwin::getArchTypeForMachOArchName(StringRef Str) {
       .Cases("arm", "armv4t", "armv5", "armv6", "armv6m", llvm::Triple::arm)
       .Cases("armv7", "armv7em", "armv7k", "armv7m", llvm::Triple::arm)
       .Cases("armv7s", "xscale", llvm::Triple::arm)
-      .Case("arm64", llvm::Triple::aarch64)
+      .Cases("arm64", "arm64_32", llvm::Triple::aarch64)
       .Case("r600", llvm::Triple::r600)
       .Case("amdgcn", llvm::Triple::amdgcn)
       .Case("nvptx", llvm::Triple::nvptx)
@@ -70,7 +70,7 @@ void darwin::setTripleTypeForMachOArchName(llvm::Triple &T, StringRef Str) {
   llvm::ARM::ArchKind ArchKind = llvm::ARM::parseArch(Str);
   T.setArch(Arch);
 
-  if (Str == "x86_64h")
+  if (Str == "x86_64h" || Str == "arm64_32")
     T.setArchName(Str);
   else if (ArchKind == llvm::ARM::ArchKind::ARMV6M ||
            ArchKind == llvm::ARM::ArchKind::ARMV7M ||
@@ -780,6 +780,8 @@ StringRef MachO::getMachOArchName(const ArgList &Args) const {
     return getDefaultUniversalArchName();
 
   case llvm::Triple::aarch64:
+    if (getTriple().getArchName().endswith("_32"))
+      return "arm64_32";
     return "arm64";
 
   case llvm::Triple::thumb:
@@ -1530,7 +1532,7 @@ inferDeploymentTargetFromArch(DerivedArgList &Args, const Darwin &Toolchain,
   if (MachOArchName == "armv7" || MachOArchName == "armv7s" ||
       MachOArchName == "arm64")
     OSTy = llvm::Triple::IOS;
-  else if (MachOArchName == "armv7k")
+  else if (MachOArchName == "armv7k" || MachOArchName == "arm64_32")
     OSTy = llvm::Triple::WatchOS;
   else if (MachOArchName != "armv6m" && MachOArchName != "armv7m" &&
            MachOArchName != "armv7em")
