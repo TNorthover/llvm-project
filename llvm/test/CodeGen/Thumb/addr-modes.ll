@@ -14,7 +14,7 @@ target triple = "thumbv6m-arm-none-eabi"
 
 ; Test case 01: %n is scaled by 4 (size of i32).
 ; Expected: GEP cannot be folded into LOAD.
-; CHECK: local addrmode: [Base:%arrayidx]
+; CHECK: local addrmode: [(inbounds)Base:%arrayidx]
 define i32 @load01(i32* %p, i32 %n) nounwind {
 entry:
   %arrayidx = getelementptr inbounds i32, i32* %p, i32 %n
@@ -24,7 +24,7 @@ entry:
 
 ; Test case 02: No scale of %n is needed because the size of i8 is 1.
 ; Expected: GEP can be folded into LOAD.
-; CHECK: local addrmode: [Base:%p + 1*%n]
+; CHECK: local addrmode: [(inbounds)Base:%p + 1*%n]
 define i8 @load02(i8* %p, i32 %n) nounwind {
 entry:
   %arrayidx = getelementptr inbounds i8, i8* %p, i32 %n
@@ -34,7 +34,7 @@ entry:
 
 ; Test case 03: 2*%x can be represented as %x + %x.
 ; Expected: GEP can be folded into LOAD.
-; CHECK: local addrmode: [2*%x]
+; CHECK: local addrmode: [(inbounds)2*%x]
 define i32 @load03(i32 %x) nounwind {
 entry:
   %mul = shl nsw i32 %x, 1
