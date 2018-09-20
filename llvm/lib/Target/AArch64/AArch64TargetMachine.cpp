@@ -132,6 +132,16 @@ static cl::opt<cl::boolOrDefault>
     EnableGlobalMerge("aarch64-enable-global-merge", cl::Hidden,
                       cl::desc("Enable the global merge pass"));
 
+namespace llvm {
+  void initializeAArch64ARMCompatibilityPass(PassRegistry &);
+  void initializeAArch64StretCompatibilityPass(PassRegistry &);
+  void initializeAArch64SwiftHackPass(PassRegistry &);
+
+  cl::opt<bool> WatchBitcodeCompatibility(
+      "aarch64-watch-bitcode-compatibility", cl::Hidden, cl::init(false),
+      cl::desc("Make thumbv7k bitcode compatible with arm64_32"));
+}
+
 static cl::opt<bool>
     EnableLoopDataPrefetch("aarch64-enable-loop-data-prefetch", cl::Hidden,
                            cl::desc("Enable the loop data prefetch pass"),
@@ -156,6 +166,9 @@ extern "C" void LLVMInitializeAArch64Target() {
   RegisterTargetMachine<AArch64beTargetMachine> Y(getTheAArch64beTarget());
   RegisterTargetMachine<AArch64leTargetMachine> Z(getTheARM64Target());
   auto PR = PassRegistry::getPassRegistry();
+  initializeAArch64ARMCompatibilityPass(*PR);
+  initializeAArch64StretCompatibilityPass(*PR);
+  initializeAArch64SwiftHackPass(*PR);
   initializeGlobalISel(*PR);
   initializeAArch64A53Fix835769Pass(*PR);
   initializeAArch64A57FPLoadBalancingPass(*PR);
@@ -401,6 +414,12 @@ TargetPassConfig *AArch64TargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 void AArch64PassConfig::addIRPasses() {
+  if (WatchBitcodeCompatibility) {
+    addPass(createAArch64ARMCompatibilityPass());
+    addPass(createAArch64StretCompatibilityPass());
+    addPass(createAArch64SwiftHackPass());
+  }
+
   // Always expand atomic operations, we don't deal with atomicrmw or cmpxchg
   // ourselves.
   addPass(createAtomicExpandPass());
