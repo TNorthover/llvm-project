@@ -21,6 +21,7 @@ add_public_tablegen_target(AArch64CommonTableGen)
 
 add_llvm_target(AArch64CodeGen
   AArch64A57FPLoadBalancing.cpp
+  AArch64ARMCompatibility.cpp
   AArch64AdvSIMDScalarPass.cpp
   AArch64AsmPrinter.cpp
   AArch64BranchTargets.cpp
@@ -56,7 +57,9 @@ add_llvm_target(AArch64CodeGen
   AArch64SelectionDAGInfo.cpp
   AArch64SpeculationHardening.cpp
   AArch64StorePairSuppress.cpp
+  AArch64StretCompatibility.cpp
   AArch64Subtarget.cpp
+  AArch64SwiftHack.cpp
   AArch64TargetMachine.cpp
   AArch64TargetObjectFile.cpp
   AArch64TargetTransformInfo.cpp

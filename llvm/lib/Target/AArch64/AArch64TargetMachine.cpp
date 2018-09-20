@@ -134,7 +134,13 @@ static cl::opt<cl::boolOrDefault>
 
 namespace llvm {
   void initializeAArch64PromotePointerPass(PassRegistry &);
+  void initializeAArch64ARMCompatibilityPass(PassRegistry &);
+  void initializeAArch64StretCompatibilityPass(PassRegistry &);
+  void initializeAArch64SwiftHackPass(PassRegistry &);
 
+  cl::opt<bool> WatchBitcodeCompatibility(
+      "aarch64-watch-bitcode-compatibility", cl::Hidden, cl::init(false),
+      cl::desc("Make thumbv7k bitcode compatible with arm64_32"));
 }
 
 static cl::opt<bool>
@@ -163,6 +169,9 @@ extern "C" void LLVMInitializeAArch64Target() {
   RegisterTargetMachine<AArch64leTargetMachine> W(getTheARM64_32Target());
   RegisterTargetMachine<AArch64leTargetMachine> V(getTheAArch64_32Target());
   auto PR = PassRegistry::getPassRegistry();
+  initializeAArch64ARMCompatibilityPass(*PR);
+  initializeAArch64StretCompatibilityPass(*PR);
+  initializeAArch64SwiftHackPass(*PR);
   initializeGlobalISel(*PR);
   initializeAArch64A53Fix835769Pass(*PR);
   initializeAArch64A57FPLoadBalancingPass(*PR);
