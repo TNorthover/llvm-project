@@ -3829,11 +3829,6 @@ bool AArch64FastISel::selectRet(const Instruction *I) {
   if (!FuncInfo.CanLowerReturn)
     return false;
 
-  // FIXME: in principle it could. Mostly just a case of zero extending outgoing
-  // pointers.
-  if (Subtarget->isTargetILP32())
-    return false;
-
   if (F.isVarArg())
     return false;
 
@@ -3912,6 +3907,11 @@ bool AArch64FastISel::selectRet(const Instruction *I) {
       if (SrcReg == 0)
         return false;
     }
+
+    // "Callee" (i.e. value producer) zero extends pointers at function
+    // boundary.
+    if (Subtarget->isTargetILP32() && RV->getType()->isPointerTy())
+      SrcReg = emitAnd_ri(MVT::i64, SrcReg, false, 0xffffffff);
 
     // Make the copy.
     BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,

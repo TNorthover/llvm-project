@@ -15,7 +15,9 @@
 define i32* @test_global_addr() {
 ; CHECK-LABEL: test_global_addr:
 ; CHECK: adrp [[PAGE:x[0-9]+]], _var32@PAGE
-; CHECK: add x0, [[PAGE]], _var32@PAGEOFF
+; CHECK-OPT: add x0, [[PAGE]], _var32@PAGEOFF
+; CHECK-FAST: add [[TMP:x[0-9]+]], [[PAGE]], _var32@PAGEOFF
+; CHECK-FAST: and x0, [[TMP]], #0xffffffff
   ret i32* @var32
 }
 
@@ -156,7 +158,9 @@ define i32 @test_unsafe_negative_unscaled_add() {
 define i8* @test_got_addr() {
 ; CHECK-LABEL: test_got_addr:
 ; CHECK: adrp x[[PAGE:[0-9]+]], _var_got@GOTPAGE
-; CHECK: ldr w0, [x[[PAGE]], _var_got@GOTPAGEOFF]
+; CHECK-OPT: ldr w0, [x[[PAGE]], _var_got@GOTPAGEOFF]
+; CHECK-FAST: ldr w[[TMP:[0-9]+]], [x[[PAGE]], _var_got@GOTPAGEOFF]
+; CHECK-FAST: and x0, x[[TMP]], #0xffffffff
   ret i8* @var_got
 }
 
@@ -229,7 +233,7 @@ declare i8* @llvm.frameaddress(i32)
 
 define i8* @test_frameaddr() {
 ; CHECK-LABEL: test_frameaddr:
-; CHECK: ldr {{w0|x0}}, [x29]
+; CHECK: ldr {{[wx][0-9]+}}, [x29]
   %val = call i8* @llvm.frameaddress(i32 1)
   ret i8* %val
 }
@@ -238,7 +242,8 @@ declare i8* @llvm.returnaddress(i32)
 
 define i8* @test_toplevel_returnaddr() {
 ; CHECK-LABEL: test_toplevel_returnaddr:
-; CHECK: mov x0, x30
+; CHECK-OPT: mov x0, x30
+; CHECK-FAST: and x0, x30, #0xffffffff
   %val = call i8* @llvm.returnaddress(i32 0)
   ret i8* %val
 }
@@ -246,7 +251,9 @@ define i8* @test_toplevel_returnaddr() {
 define i8* @test_deep_returnaddr() {
 ; CHECK-LABEL: test_deep_returnaddr:
 ; CHECK: ldr x[[FRAME_REC:[0-9]+]], [x29]
-; CHECK: ldr x0, [x[[FRAME_REC]], #8]
+; CHECK-OPT: ldr x0, [x[[FRAME_REC]], #8]
+; CHECK-FAST: ldr [[TMP:x[0-9]+]], [x[[FRAME_REC]], #8]
+; CHECK-FAST: and x0, [[TMP]], #0xffffffff
   %val = call i8* @llvm.returnaddress(i32 1)
   ret i8* %val
 }
@@ -261,7 +268,7 @@ define void @test_indirect_call(void()* %func) {
 ; Safe to use the unextended address here
 define void @test_indirect_safe_call(i32* %weird_funcs) {
 ; CHECK-LABEL: test_indirect_safe_call:
-; CHECK: add w[[ADDR32:[0-9]+]], w0, #4
+; CHECK: add {{w|x}}[[ADDR32:[0-9]+]], {{w|x}}0, #4
 ; CHECK-OPT-NOT: ubfx
 ; CHECK: blr x[[ADDR32]]
   %addr = getelementptr i32, i32* %weird_funcs, i32 1
@@ -582,7 +589,7 @@ next:
 
 define void @test_asm_memory(i32* %base.addr) {
 ; CHECK-LABEL: test_asm_memory:
-; CHECK: add w[[ADDR:[0-9]+]], w0, #4
+; CHECK: add {{w|x}}[[ADDR:[0-9]+]], {{w|x}}0, #4
 ; CHECK: str wzr, [x[[ADDR]]
   %addr = getelementptr i32, i32* %base.addr, i32 1
   call void asm sideeffect "str wzr, $0", "*m"(i32* %addr)
@@ -651,6 +658,7 @@ define void @test_struct_hi(i32 %hi) nounwind {
 ; CHECK-LABEL: test_struct_hi:
 ; CHECK: mov w[[IN:[0-9]+]], w0
 ; CHECK: bl _get_int
+; CHECK-FAST-NEXT: mov w0, w0
 ; CHECK-NEXT: bfi x0, x[[IN]], #32, #32
 ; CHECK-NEXT: bl _take_pair
   %val.64 = call i64 @get_int()
@@ -691,9 +699,14 @@ false:
 
 define { [18 x i8] }* @test_gep_nonpow2({ [18 x i8] }* %a0, i32 %a1) {
 ; CHECK-LABEL: test_gep_nonpow2:
-; CHECK:      mov w[[SIZE:[0-9]+]], #18
-; CHECK-NEXT: smaddl x0, w1, w[[SIZE]], x0
-; CHECK-NEXT: ret
+; CHECK-OPT:      mov w[[SIZE:[0-9]+]], #18
+; CHECK-OPT-NEXT: smaddl x0, w1, w[[SIZE]], x0
+; CHECK-OPT-NEXT: ret
+
+; CHECK-FAST: sxtw [[ELTS:x[0-9]+]], w1
+; CHECK-FAST: mov [[SIZE:x[0-9]+]], #18
+; CHECK-FAST: madd [[BYTES:x[0-9]+]], [[ELTS]], [[SIZE]], x0
+; CHECK-FAST: and x0, [[BYTES]], #0xffffffff
   %tmp0 = getelementptr inbounds { [18 x i8] }, { [18 x i8] }* %a0, i32 %a1
   ret { [18 x i8] }* %tmp0
 }
