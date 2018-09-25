@@ -47,3 +47,39 @@ define {i8*} @test_ret_ptr_struct(i64 %in) {
   %res = insertvalue {i8*} undef, i8* %res.ptr, 0
   ret {i8*} %res
 }
+
+
+define void @test_pointer_call(i64 %in) {
+; CHECK-LABEL: test_pointer_call:
+; CHECK: and x0, x0, #0xffffffff
+; CHECK: bl _test_struct_return
+
+  ; Call a random function taking a pointer. Ignore the name.
+  %ptr = inttoptr i64 %in to i32*
+  call void @test_struct_return(i32* %ptr)
+  ret void
+}
+
+define void @test_stack_pointer_call() {
+; CHECK-LABEL: test_stack_pointer_call:
+; CHECK: add x[[VAR:[0-9]+]], sp, #
+; CHECK: mov [[VAR_TMP:w[0-9]+]], w[[VAR]]
+; CHECK: str [[VAR_TMP]], [sp]
+; CHECK: mov [[VAR_TMP:w[0-9]+]], w[[VAR]]
+; CHECK: str [[VAR_TMP]], [sp, #4]
+
+  %var = alloca i8
+  call i8* @test_stack_pointer_arg(i64 undef, i64 undef, i64 undef, i64 undef,
+                                   i64 undef, i64 undef, i64 undef, i64 undef,
+                                   i8* %var, i8* %var)
+  ret void
+}
+
+define i8* @test_stack_pointer_arg(i64, i64, i64, i64, i64, i64, i64, i64, i8* %in1, i8* %in2) {
+; CHECK-LABEL: test_stack_pointer_arg:
+; CHECK: ldr [[IN1:w[0-9]+]], [sp]
+; CHECK: mov w[[IN1_TMP:[0-9]+]], [[IN1]]
+; CHECK: and x0, x[[IN1_TMP]], #0xffffffff
+
+  ret i8* %in1
+}

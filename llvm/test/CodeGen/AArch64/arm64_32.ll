@@ -534,7 +534,9 @@ define void @test_stack_guard() ssp {
 ; CHECK: ldr [[GUARD_VAL:w[0-9]+]], [x[[GUARD_ADDR]]]
 ; CHECK: stur [[GUARD_VAL]], [x29, #[[GUARD_OFFSET:-[0-9]+]]]
 
-; CHECK: add x0, sp, #{{[0-9]+}}
+; CHECK-OPT: add x0, sp, #{{[0-9]+}}
+; CHECK-FAST: add [[TMP:x[0-9]+]], sp, #{{[0-9]+}}
+; CHECK-FAST: ubfx x0, [[TMP]], #0, #32
 ; CHECK: bl _callee
 
 ; CHECK-OPT: adrp x[[GUARD_GOTPAGE:[0-9]+]], ___stack_chk_guard@GOTPAGE
@@ -556,8 +558,10 @@ declare void @eat_landingpad_args(i32, i8*, i32)
 @_ZTI8Whatever = external global i8
 define void @test_landingpad_marshalling() personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 ; CHECK-LABEL: test_landingpad_marshalling:
-; CHECK: mov w2, w1
-; CHECK: mov x1, x0
+; CHECK-OPT: mov w2, w1
+; CHECK-OPT: mov x1, x0
+; CHECK-FAST: mov x2, x1
+; CHECK-FAST: and x1, x0, #0xffffffff
 ; CHECK: bl _eat_landingpad_args
   invoke void @callee([8 x i32]* undef) to label %done unwind label %lpad
 

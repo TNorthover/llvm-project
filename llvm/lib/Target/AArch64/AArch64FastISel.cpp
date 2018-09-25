@@ -179,7 +179,7 @@ private:
   bool selectAtomicCmpXchg(const AtomicCmpXchgInst *I);
 
   // Utility helper routines.
-  bool isTypeLegal(Type *Ty, MVT &VT);
+  bool isTypeLegal(Type *Ty, MVT &VT, bool IsILP32Allowed = false);
   bool isTypeSupported(Type *Ty, MVT &VT, bool IsVectorAllowed = false);
   bool isValueAvailable(const Value *V) const;
   bool computeAddress(const Value *Obj, Address &Addr, Type *Ty = nullptr);
@@ -973,10 +973,10 @@ bool AArch64FastISel::computeCallAddress(const Value *V, Address &Addr) {
   return false;
 }
 
-bool AArch64FastISel::isTypeLegal(Type *Ty, MVT &VT) {
+bool AArch64FastISel::isTypeLegal(Type *Ty, MVT &VT, bool IsILP32Allowed) {
   EVT evt = TLI.getValueType(DL, Ty, true);
 
-  if (Subtarget->isTargetILP32() && Ty->isPointerTy())
+  if (!IsILP32Allowed && Subtarget->isTargetILP32() && Ty->isPointerTy())
     return false;
 
   // Only handle simple types.
@@ -3078,6 +3078,7 @@ bool AArch64FastISel::processCallArgs(CallLoweringInfo &CLI,
   for (CCValAssign &VA : ArgLocs) {
     const Value *ArgVal = CLI.OutVals[VA.getValNo()];
     MVT ArgVT = OutVTs[VA.getValNo()];
+    auto ArgFlags = CLI.OutFlags[VA.getValNo()];
 
     unsigned ArgReg = getRegForValue(ArgVal);
     if (!ArgReg)
@@ -3105,12 +3106,24 @@ bool AArch64FastISel::processCallArgs(CallLoweringInfo &CLI,
         return false;
       break;
     }
+    case CCValAssign::Trunc: {
+      assert(VA.getLocVT() == MVT::i32 && VA.getValVT() == MVT::i64);
+      ArgVT = MVT::i32;
+      ArgReg =
+          fastEmitInst_extractsubreg(ArgVT, ArgReg, false, AArch64::sub_32);
+      if (!ArgReg)
+        return false;
+      break;
+    }
     default:
       llvm_unreachable("Unknown arg promotion!");
     }
 
     // Now copy/store arg to correct locations.
     if (VA.isRegLoc() && !VA.needsCustom()) {
+      if (Subtarget->isTargetILP32() && ArgFlags.isPointer())
+        ArgReg = emitAnd_ri(MVT::i64, ArgReg, false, 0xffffffff);
+
       BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
               TII.get(TargetOpcode::COPY), VA.getLocReg()).addReg(ArgReg);
       CLI.OutRegs.push_back(VA.getLocReg());
@@ -3201,11 +3214,6 @@ bool AArch64FastISel::fastLowerCall(CallLoweringInfo &CLI) {
   if (IsTailCall)
     return false;
 
-  // FIXME: we could and should support this, but for now correctness at -O0 is
-  // more important.
-  if (Subtarget->isTargetILP32())
-    return false;
-
   CodeModel::Model CM = TM.getCodeModel();
   // Only support the small-addressing and large code models.
   if (CM != CodeModel::Large && !Subtarget->useSmallAddressing())
@@ -3223,7 +3231,7 @@ bool AArch64FastISel::fastLowerCall(CallLoweringInfo &CLI) {
   MVT RetVT;
   if (CLI.RetTy->isVoidTy())
     RetVT = MVT::isVoid;
-  else if (!isTypeLegal(CLI.RetTy, RetVT))
+  else if (!isTypeLegal(CLI.RetTy, RetVT, true))
     return false;
 
   for (auto Flag : CLI.OutFlags)
@@ -3237,7 +3245,7 @@ bool AArch64FastISel::fastLowerCall(CallLoweringInfo &CLI) {
 
   for (auto *Val : CLI.OutVals) {
     MVT VT;
-    if (!isTypeLegal(Val->getType(), VT) &&
+    if (!isTypeLegal(Val->getType(), VT, true) &&
         !(VT == MVT::i1 || VT == MVT::i8 || VT == MVT::i16))
       return false;
 
