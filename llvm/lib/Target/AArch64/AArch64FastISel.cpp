@@ -180,7 +180,8 @@ private:
 
   // Utility helper routines.
   bool isTypeLegal(Type *Ty, MVT &VT, bool IsILP32Allowed = false);
-  bool isTypeSupported(Type *Ty, MVT &VT, bool IsVectorAllowed = false);
+  bool isTypeSupported(Type *Ty, MVT &VT, bool IsVectorAllowed = false,
+                       bool IsILP32Allowed = false);
   bool isValueAvailable(const Value *V) const;
   bool computeAddress(const Value *Obj, Address &Addr, Type *Ty = nullptr);
   bool computeCallAddress(const Value *V, Address &Addr);
@@ -997,11 +998,12 @@ bool AArch64FastISel::isTypeLegal(Type *Ty, MVT &VT, bool IsILP32Allowed) {
 ///
 /// FastISel for AArch64 can handle more value types than are legal. This adds
 /// simple value type such as i1, i8, and i16.
-bool AArch64FastISel::isTypeSupported(Type *Ty, MVT &VT, bool IsVectorAllowed) {
+bool AArch64FastISel::isTypeSupported(Type *Ty, MVT &VT, bool IsVectorAllowed,
+                                      bool IsILP32Allowed) {
   if (Ty->isVectorTy() && !IsVectorAllowed)
     return false;
 
-  if (isTypeLegal(Ty, VT))
+  if (isTypeLegal(Ty, VT, IsILP32Allowed)) // ILP32 do last
     return true;
 
   // If this is a type than can be sign or zero-extended to a basic operation
@@ -1021,9 +1023,6 @@ bool AArch64FastISel::isValueAvailable(const Value *V) const {
 }
 
 bool AArch64FastISel::simplifyAddress(Address &Addr, MVT VT) {
-  if (Subtarget->isTargetILP32())
-    return false;
-
   unsigned ScaleFactor = getImplicitScaleFactor(VT);
   if (!ScaleFactor)
     return false;
@@ -1978,10 +1977,12 @@ bool AArch64FastISel::selectLoad(const Instruction *I) {
   // Verify we have a legal type before going any further.  Currently, we handle
   // simple types that will directly fit in a register (i32/f32/i64/f64) or
   // those that can be sign or zero-extended to a basic operation (i1/i8/i16).
-  if (!isTypeSupported(I->getType(), VT, /*IsVectorAllowed=*/true) ||
+  if (!isTypeSupported(I->getType(), VT, /*IsVectorAllowed=*/true,
+                       /*IsILP32Allowed*/ true) ||
       cast<LoadInst>(I)->isAtomic())
     return false;
 
+  MVT MemVT = TLI.getMemValueType(DL, I->getType()).getSimpleVT();
   const Value *SV = I->getOperand(0);
   if (TLI.supportSwiftError()) {
     // Swifterror values can come from either a function parameter with
@@ -2002,17 +2003,20 @@ bool AArch64FastISel::selectLoad(const Instruction *I) {
   if (!computeAddress(I->getOperand(0), Addr, I->getType()))
     return false;
 
-  // Fold the following sign-/zero-extend into the load instruction.
+  // Fold the following sign-/zero-extend into the load instruction. An ILP32
+  // pointer gets marked for zero-extension at this point.
   bool WantZExt = true;
   MVT RetVT = VT;
   const Value *IntExtVal = nullptr;
   if (I->hasOneUse()) {
     if (const auto *ZE = dyn_cast<ZExtInst>(I->use_begin()->getUser())) {
+      assert(MemVT == RetVT && "unexpected extension of pointer");
       if (isTypeSupported(ZE->getType(), RetVT))
         IntExtVal = ZE;
       else
         RetVT = VT;
     } else if (const auto *SE = dyn_cast<SExtInst>(I->use_begin()->getUser())) {
+      assert(MemVT == RetVT && "unexpected extension of pointer");
       if (isTypeSupported(SE->getType(), RetVT))
         IntExtVal = SE;
       else
@@ -2022,7 +2026,7 @@ bool AArch64FastISel::selectLoad(const Instruction *I) {
   }
 
   unsigned ResultReg =
-      emitLoad(VT, RetVT, Addr, WantZExt, createMachineMemOperandFor(I));
+      emitLoad(MemVT, RetVT, Addr, WantZExt, createMachineMemOperandFor(I));
   if (!ResultReg)
     return false;
 

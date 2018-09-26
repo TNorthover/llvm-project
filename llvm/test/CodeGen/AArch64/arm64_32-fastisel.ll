@@ -83,3 +83,23 @@ define i8* @test_stack_pointer_arg(i64, i64, i64, i64, i64, i64, i64, i64, i8* %
 
   ret i8* %in1
 }
+
+define i8* @test_load_ptr(i8** %addr) {
+; CHECK-LABEL: test_load_ptr:
+; CHECK: ldr [[VAL:w[0-9]+]], [x0, #12]
+; CHECK: mov w[[TMP:[0-9]+]], [[VAL]]
+; CHECK: and x0, x[[TMP]], #0xffffffff
+
+  %elt = getelementptr i8*, i8** %addr, i64 3
+  %val = load i8*, i8** %elt
+  ret i8* %val
+}
+
+define i64 @test_ext_load(i32* %addr) {
+; CHECK-LABEL: test_ext_load:
+; CHECK: ldrsw x0, [x0]
+
+  %val = load i32, i32* %addr
+  %res = sext i32 %val to i64
+  ret i64 %res
+}

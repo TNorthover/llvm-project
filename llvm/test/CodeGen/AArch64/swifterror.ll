@@ -213,17 +213,15 @@ define float @foo_loop(%swift_error** swifterror %error_ptr_ref, i32 %cc, float 
 ; CHECK-O0-ARM64_32: orr w{{.*}}, wzr, #0x10
 ; CHECK-O0-ARM64_32: malloc
 ; CHECK-O0-ARM64_32: mov [[ID:x[0-9]+]], x0
-; CHECK-O0-ARM64_32: mov [[ID2:x[0-9]+]], x0
-; CHECK-O0-ARM64_32: strb w{{.*}}, [x0, #8]
+; CHECK-O0-ARM64_32: strb w{{.*}}, [x30, #8]
 ; spill x0
-; CHECK-O0-ARM64_32: str [[ID2]], [sp, [[SLOT2]]]
 ; CHECK-O0-ARM64_32:[[BB2]]:
 ; CHECK-O0-ARM64_32: ldr     x0, [sp, [[SLOT2]]]
 ; CHECK-O0-ARM64_32: fcmp
-; CHECK-O0-ARM64_32: str     x0, [sp]
+; CHECK-O0-ARM64_32: str     x0, [sp, #8]
 ; CHECK-O0-ARM64_32: b.le [[BB1]]
 ; reload from stack
-; CHECK-O0-ARM64_32: ldr [[ID3:x[0-9]+]], [sp]
+; CHECK-O0-ARM64_32: ldr [[ID3:x[0-9]+]], [sp, #8]
 ; CHECK-O0-ARM64_32: mov x21, [[ID3]]
 ; CHECK-O0-ARM64_32: ret
 

@@ -37,7 +37,9 @@ define i64 @test_global_addr_extension() {
 define i32 @test_global_value() {
 ; CHECK-LABEL: test_global_value:
 ; CHECK: adrp x[[PAGE:[0-9]+]], _var32@PAGE
-; CHECK: ldr w0, [x[[PAGE]], _var32@PAGEOFF]
+; CHECK-OPT: ldr w0, [x[[PAGE]], _var32@PAGEOFF]
+; CHECK-FAST: add x[[VAR32:[0-9]+]], x[[PAGE]], _var32@PAGEOFF
+; CHECK-FAST: ldr w0, [x[[VAR32]]]
   %val = load i32, i32* @var32, align 4
   ret i32 %val
 }
@@ -60,8 +62,9 @@ define i32 @test_unsafe_indexed_add() {
 define i32 @test_safe_indexed_add() {
 ; CHECK-LABEL: test_safe_indexed_add:
 ; CHECK: add x[[VAR32:[0-9]+]], {{x[0-9]+}}, _var32@PAGEOFF
-; CHECK: add w[[ADDR:[0-9]+]], w[[VAR32]], #32
-; CHECK: ldr w0, [x[[ADDR]]]
+; CHECK-OPT: add w[[ADDR:[0-9]+]], w[[VAR32]], #32
+; CHECK-OPT: ldr w0, [x[[ADDR]]]
+; CHECK-FAST: ldr w0, [x[[VAR32]], #32]
   %addr_int = ptrtoint i32* @var32 to i64
   %addr_plus_32 = add nuw i64 %addr_int, 32
   %addr = inttoptr i64 %addr_plus_32 to i32*
@@ -536,7 +539,7 @@ define void @test_stack_guard() ssp {
 
 ; CHECK-OPT: add x0, sp, #{{[0-9]+}}
 ; CHECK-FAST: add [[TMP:x[0-9]+]], sp, #{{[0-9]+}}
-; CHECK-FAST: ubfx x0, [[TMP]], #0, #32
+; CHECK-FAST: and x0, [[TMP]], #0xffffffff
 ; CHECK: bl _callee
 
 ; CHECK-OPT: adrp x[[GUARD_GOTPAGE:[0-9]+]], ___stack_chk_guard@GOTPAGE
