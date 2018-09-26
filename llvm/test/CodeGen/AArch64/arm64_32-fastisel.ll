@@ -113,3 +113,21 @@ define void @test_store_ptr(i8* %in, i8** %addr) {
   store i8* %in, i8** %elt
   ret void
 }
+
+define i8* @test_gep(i8* %in) {
+; CHECK-LABEL: test_gep:
+; CHECK: add [[SUM:x[0-9]+]], x0, #12
+; CHECK: and [[MASK:x[0-9]+]], [[SUM]], #0xffffffff
+; CHECK: and x0, [[MASK]], #0xffffffff
+  %res = getelementptr i8, i8* %in, i32 12
+  ret i8* %res
+}
+
+define i8* @test_gep_inbounds(i8* %in) {
+; CHECK-LABEL: test_gep_inbounds:
+; CHECK: add [[SUM:x[0-9]+]], x0, #12
+; CHECK: and x0, [[SUM]], #0xffffffff
+; CHECK-NEXT: ret
+%res = getelementptr inbounds i8, i8* %in, i32 12
+  ret i8* %res
+}

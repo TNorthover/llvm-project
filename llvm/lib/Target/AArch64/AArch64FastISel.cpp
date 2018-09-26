@@ -5096,6 +5096,10 @@ bool AArch64FastISel::selectGetElementPtr(const Instruction *I) {
     if (!N)
       return false;
   }
+
+  if (Subtarget->isTargetILP32() && !cast<GetElementPtrInst>(I)->isInBounds())
+    N = emitAnd_ri(MVT::i64, N, NIsKill, 0xffffffffu);
+
   updateValueMap(I, N);
   return true;
 }
