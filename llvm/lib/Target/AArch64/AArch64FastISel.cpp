@@ -2102,11 +2102,19 @@ bool AArch64FastISel::emitStoreRelease(MVT VT, unsigned SrcReg,
   }
 
   const MCInstrDesc &II = TII.get(Opc);
-  SrcReg = constrainOperandRegClass(II, SrcReg, 0);
+  unsigned SubReg = 0;
+  if (VT == MVT::i32 && TRI.getRegSizeInBits(SrcReg, MRI) == 64) {
+    assert(VT == MVT::i32 && TRI.getRegSizeInBits(SrcReg, MRI) == 64 &&
+           Subtarget->isTargetILP32());
+    MRI.constrainRegClass(SrcReg, &AArch64::GPR64RegClass);
+    SubReg = AArch64::sub_32;
+  } else
+    SrcReg = constrainOperandRegClass(II, SrcReg, II.getNumDefs());
+
   AddrReg = constrainOperandRegClass(II, AddrReg, 1);
   BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II)
-      .addReg(SrcReg)
-      .addReg(AddrReg)
+      .addUse(SrcReg, 0, SubReg)
+      .addUse(AddrReg)
       .addMemOperand(MMO);
   return true;
 }
@@ -2169,11 +2177,19 @@ bool AArch64FastISel::emitStore(MVT VT, unsigned SrcReg, Address Addr,
     assert(ANDReg && "Unexpected AND instruction emission failure.");
     SrcReg = ANDReg;
   }
-  // Create the base instruction, then add the operands.
+
   const MCInstrDesc &II = TII.get(Opc);
-  SrcReg = constrainOperandRegClass(II, SrcReg, II.getNumDefs());
+  unsigned SubReg = 0;
+  if (VT == MVT::i32 && TRI.getRegSizeInBits(SrcReg, MRI) == 64) {
+    MRI.constrainRegClass(SrcReg, &AArch64::GPR64RegClass);
+    SubReg = AArch64::sub_32;
+  } else
+    SrcReg = constrainOperandRegClass(II, SrcReg, II.getNumDefs());
+
+  // Create the base instruction, then add the operands.
   MachineInstrBuilder MIB =
-      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II).addReg(SrcReg);
+      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, II)
+          .addUse(SrcReg, 0, SubReg);
   addLoadStoreOperands(Addr, MIB, MachineMemOperand::MOStore, ScaleFactor, MMO);
 
   return true;
@@ -2185,9 +2201,13 @@ bool AArch64FastISel::selectStore(const Instruction *I) {
   // Verify we have a legal type before going any further.  Currently, we handle
   // simple types that will directly fit in a register (i32/f32/i64/f64) or
   // those that can be sign or zero-extended to a basic operation (i1/i8/i16).
-  if (!isTypeSupported(Op0->getType(), VT, /*IsVectorAllowed=*/true))
+  if (!isTypeSupported(Op0->getType(), VT, /*IsVectorAllowed=*/true,
+                       /*IsILP32Allowed*/ true))
     return false;
 
+  auto *SI = cast<StoreInst>(I);
+  MVT MemVT =
+      TLI.getMemValueType(DL, SI->getOperand(0)->getType()).getSimpleVT();
   const Value *PtrV = I->getOperand(1);
   if (TLI.supportSwiftError()) {
     // Swifterror values can come from either a function parameter with
@@ -2208,11 +2228,11 @@ bool AArch64FastISel::selectStore(const Instruction *I) {
   unsigned SrcReg = 0;
   if (const auto *CI = dyn_cast<ConstantInt>(Op0)) {
     if (CI->isZero())
-      SrcReg = (VT == MVT::i64) ? AArch64::XZR : AArch64::WZR;
+      SrcReg = (MemVT == MVT::i64) ? AArch64::XZR : AArch64::WZR;
   } else if (const auto *CF = dyn_cast<ConstantFP>(Op0)) {
     if (CF->isZero() && !CF->isNegative()) {
-      VT = MVT::getIntegerVT(VT.getSizeInBits());
-      SrcReg = (VT == MVT::i64) ? AArch64::XZR : AArch64::WZR;
+      MemVT = MVT::getIntegerVT(VT.getSizeInBits());
+      SrcReg = (MemVT == MVT::i64) ? AArch64::XZR : AArch64::WZR;
     }
   }
 
@@ -2222,8 +2242,6 @@ bool AArch64FastISel::selectStore(const Instruction *I) {
   if (!SrcReg)
     return false;
 
-  auto *SI = cast<StoreInst>(I);
-
   // Try to emit a STLR for seq_cst/release.
   if (SI->isAtomic()) {
     AtomicOrdering Ord = SI->getOrdering();
@@ -2231,7 +2249,7 @@ bool AArch64FastISel::selectStore(const Instruction *I) {
     if (isReleaseOrStronger(Ord)) {
       // The STLR addressing mode only supports a base reg; pass that directly.
       unsigned AddrReg = getRegForValue(PtrV);
-      return emitStoreRelease(VT, SrcReg, AddrReg,
+      return emitStoreRelease(MemVT, SrcReg, AddrReg,
                               createMachineMemOperandFor(I));
     }
   }
@@ -2241,7 +2259,7 @@ bool AArch64FastISel::selectStore(const Instruction *I) {
   if (!computeAddress(PtrV, Addr, Op0->getType()))
     return false;
 
-  if (!emitStore(VT, SrcReg, Addr, createMachineMemOperandFor(I)))
+  if (!emitStore(MemVT, SrcReg, Addr, createMachineMemOperandFor(I)))
     return false;
   return true;
 }

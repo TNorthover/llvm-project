@@ -1,10 +1,10 @@
-; RUN: llc -fast-isel=true  -global-isel=false -O0 -mtriple=arm64_32-apple-ios %s -o - | FileCheck %s
-; RUN: llc -fast-isel=false -global-isel=false -O0 -mtriple=arm64_32-apple-ios %s -o - | FileCheck %s
+; RUN: llc -fast-isel=true  -global-isel=false -O0 -mtriple=arm64_32-apple-ios %s -o - | FileCheck %s --check-prefix=CHECK --check-prefix=FAST
+; RUN: llc -fast-isel=false -global-isel=false -O0 -mtriple=arm64_32-apple-ios %s -o - | FileCheck %s --check-prefix=CHECK --check-prefix=OPT
 
 define void @test_store(i8** %p) {
 ; CHECK-LABEL: test_store:
-; CHECK: mov [[R1:w[0-9]+]], wzr
-; CHECK: str [[R1]], [x0]
+; CHECK: mov {{x|w}}[[R1:[0-9]+]], {{x|w}}zr
+; CHECK: str w[[R1]], [x0]
 
   store i8* null, i8** %p
   ret void
@@ -16,9 +16,10 @@ define void @test_phi(i8** %p) {
 ; CHECK: str [[R1]], [sp]
 ; CHECK: b [[BB:LBB[0-9_]+]]
 ; CHECK: [[BB]]:
-; CHECK: ldr x0, [sp]
-; CHECK: mov [[R2:w[0-9]+]], w0
-; CHECK: str [[R2]], [x{{.*}}]
+; CHECK-OPT: ldr x0, [sp]
+; CHECK-OPT: mov [[R2:w[0-9]+]], w0
+; CHECK-FAST: ldr x[[R2:[0-9]+]], [sp]
+; CHECK-FAST: str [[R2]], [x{{.*}}]
 
 bb0:
   br label %bb1

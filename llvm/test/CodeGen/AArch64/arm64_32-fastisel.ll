@@ -1,10 +1,11 @@
-; RUN: llc -mtriple=arm64_32-apple-ios -O0 -fast-isel %s -o - | FileCheck %s
+; RUN: llc -mtriple=arm64_32-apple-ios -O0 -fast-isel -fast-isel-abort=1 %s -o - | FileCheck %s
+
 @var = global i8* null
 
 define void @test_store_release_ptr() {
 ; CHECK-LABEL: test_store_release_ptr
-; CHECK: mov [[ZERO:w[0-9]+]], wzr
-; CHECK: stlr [[ZERO]]
+; CHECK: mov {{w|x}}[[ZERO:[0-9]+]], {{w|x}}zr
+; CHECK: stlr w[[ZERO]]
   store atomic i8* null, i8** @var release, align 4
   br label %next
 
@@ -102,4 +103,13 @@ define i64 @test_ext_load(i32* %addr) {
   %val = load i32, i32* %addr
   %res = sext i32 %val to i64
   ret i64 %res
+}
+
+define void @test_store_ptr(i8* %in, i8** %addr) {
+; CHECK-LABEL: test_store_ptr:
+; CHECK: str w0, [x1, #12]
+
+  %elt = getelementptr i8*, i8** %addr, i64 3
+  store i8* %in, i8** %elt
+  ret void
 }
