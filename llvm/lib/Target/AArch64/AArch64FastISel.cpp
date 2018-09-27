@@ -2771,7 +2771,8 @@ bool AArch64FastISel::optimizeSelect(const SelectInst *SI) {
 bool AArch64FastISel::selectSelect(const Instruction *I) {
   assert(isa<SelectInst>(I) && "Expected a select instruction.");
   MVT VT;
-  if (!isTypeSupported(I->getType(), VT))
+  if (!isTypeSupported(I->getType(), VT, /*IsVectorAllowed*/ false,
+                       /*IsILP32Allowed*/ true))
     return false;
 
   unsigned Opc;

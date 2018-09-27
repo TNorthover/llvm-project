@@ -195,3 +195,12 @@ false:
   call void @bar()
   ret void
 }
+
+define i8* @test_select_ptr(i1 %tst, i8* %lhs, i8* %rhs) {
+; CHECK-LABEL: test_select_ptr:
+; CHECK: tst w0, #0
+; CHECK: csel [[TMP:x[0-9]+]], x1, x2, ne
+; CHECK: and x0, [[TMP]], #0xffffffff
+  %res = select i1 %tst, i8* %lhs, i8* %rhs
+  ret i8* %res
+}
