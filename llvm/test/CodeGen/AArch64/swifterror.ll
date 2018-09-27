@@ -55,7 +55,8 @@ define float @caller(i8* %error_ref) {
 ; CHECK-O0: bl {{.*}}foo
 ; CHECK-O0: mov [[ID:x[0-9]+]], x21
 ; CHECK-O0-AARCH64: cbnz x21
-; CHECK-O0-ARM64_32: cmp x21, #0
+; CHECK-O0-ARM64_32: mov [[TMP:w[0-9]+]], w21
+; CHECK-O0-ARM64_32: cbnz [[TMP]]
 entry:
   %error_ptr_ref = alloca swifterror %swift_error*
   store %swift_error* null, %swift_error** %error_ptr_ref
@@ -96,7 +97,8 @@ define float @caller2(i8* %error_ref) {
 ; CHECK-O0: bl {{.*}}foo
 ; CHECK-O0: mov [[ID:x[0-9]+]], x21
 ; CHECK-O0-AARCH64: cbnz x21
-; CHECK-O0-ARM64_32: cmp x21, #0
+; CHECK-O0-ARM64_32: mov [[TMP:w[0-9]+]], w21
+; CHECK-O0-ARM64_32: cbnz [[TMP]]
 entry:
   %error_ptr_ref = alloca swifterror %swift_error*
   br label %bb_loop
@@ -308,7 +310,8 @@ define float @caller3(i8* %error_ref) {
 ; CHECK-O0: bl {{.*}}foo_sret
 ; CHECK-O0: mov [[ID2:x[0-9]+]], x21
 ; CHECK-O0-AARCH64: cbnz x21
-; CHECK-O0-ARM64_32: cmp x21, #0
+; CHECK-O0-ARM64_32: mov [[TMP:w[0-9]+]], w21
+; CHECK-O0-ARM64_32: cbnz [[TMP]]
 ; Access part of the error object and save it to error_ref
 ; reload from stack
 ; CHECK-O0: ldrb [[CODE:w[0-9]+]]

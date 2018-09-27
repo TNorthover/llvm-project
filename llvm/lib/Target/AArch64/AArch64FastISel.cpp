@@ -1207,6 +1207,30 @@ unsigned AArch64FastISel::emitAddSub(bool UseAdd, MVT RetVT, const Value *LHS,
   if (NeedExtend)
     LHSReg = emitIntExt(SrcVT, LHSReg, RetVT, IsZExt);
 
+  bool IsILP32Pointer =
+      Subtarget->isTargetILP32() && RHS->getType()->isPointerTy();
+
+  const auto &ExtendResult = [&](unsigned ResultReg) -> unsigned {
+    if (!ResultReg || !IsILP32Pointer)
+      return ResultReg;
+
+    unsigned Result64 = createResultReg(&AArch64::GPR64RegClass);
+    BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
+            TII.get(TargetOpcode::SUBREG_TO_REG))
+        .addDef(Result64)
+        .addImm(0)
+        .addReg(ResultReg, RegState::Kill)
+        .addImm(AArch64::sub_32);
+    return Result64;
+  };
+
+  if (IsILP32Pointer) {
+    RetVT = MVT::i32;
+    LHSReg =
+        fastEmitInst_extractsubreg(MVT::i32, LHSReg, false, AArch64::sub_32);
+  }
+
+
   unsigned ResultReg = 0;
   if (const auto *C = dyn_cast<ConstantInt>(RHS)) {
     uint64_t Imm = IsZExt ? C->getZExtValue() : C->getSExtValue();
@@ -1222,11 +1246,12 @@ unsigned AArch64FastISel::emitAddSub(bool UseAdd, MVT RetVT, const Value *LHS,
                                 WantResult);
 
   if (ResultReg)
-    return ResultReg;
+    return ExtendResult(ResultReg);
 
   // Only extend the RHS within the instruction if there is a valid extend type.
   if (ExtendType != AArch64_AM::InvalidShiftExtend && RHS->hasOneUse() &&
       isValueAvailable(RHS)) {
+    assert(!RHS->getType()->isPointerTy() && "ILP32 broken");
     if (const auto *SI = dyn_cast<BinaryOperator>(RHS))
       if (const auto *C = dyn_cast<ConstantInt>(SI->getOperand(1)))
         if ((SI->getOpcode() == Instruction::Shl) && (C->getZExtValue() < 4)) {
@@ -1258,6 +1283,7 @@ unsigned AArch64FastISel::emitAddSub(bool UseAdd, MVT RetVT, const Value *LHS,
 
       assert(isa<ConstantInt>(MulRHS) && "Expected a ConstantInt.");
       uint64_t ShiftVal = cast<ConstantInt>(MulRHS)->getValue().logBase2();
+      assert(!RHS->getType()->isPointerTy() && "ILP32 broken");
       unsigned RHSReg = getRegForValue(MulLHS);
       if (!RHSReg)
         return 0;
@@ -1283,6 +1309,7 @@ unsigned AArch64FastISel::emitAddSub(bool UseAdd, MVT RetVT, const Value *LHS,
         }
         uint64_t ShiftVal = C->getZExtValue();
         if (ShiftType != AArch64_AM::InvalidShiftExtend) {
+          assert(!RHS->getType()->isPointerTy() && "ILP32 broken");
           unsigned RHSReg = getRegForValue(SI->getOperand(0));
           if (!RHSReg)
             return 0;
@@ -1300,13 +1327,18 @@ unsigned AArch64FastISel::emitAddSub(bool UseAdd, MVT RetVT, const Value *LHS,
   unsigned RHSReg = getRegForValue(RHS);
   if (!RHSReg)
     return 0;
+
+  if (IsILP32Pointer)
+    RHSReg =
+      fastEmitInst_extractsubreg(MVT::i32, RHSReg, false, AArch64::sub_32);
+
   bool RHSIsKill = hasTrivialKill(RHS);
 
   if (NeedExtend)
     RHSReg = emitIntExt(SrcVT, RHSReg, RetVT, IsZExt);
 
-  return emitAddSub_rr(UseAdd, RetVT, LHSReg, LHSIsKill, RHSReg, RHSIsKill,
-                       SetFlags, WantResult);
+  return ExtendResult(emitAddSub_rr(UseAdd, RetVT, LHSReg, LHSIsKill, RHSReg,
+                                    RHSIsKill, SetFlags, WantResult));
 }
 
 unsigned AArch64FastISel::emitAddSub_rr(bool UseAdd, MVT RetVT, unsigned LHSReg,
@@ -2327,12 +2359,21 @@ bool AArch64FastISel::emitCompareAndBranch(const BranchInst *BI) {
   const Value *RHS = CI->getOperand(1);
 
   MVT VT;
-  if (!isTypeSupported(LHS->getType(), VT))
+  if (!isTypeSupported(LHS->getType(), VT, /*IsVectorAllowed*/ false,
+                       /*IsILP32Allowed*/ true))
     return false;
 
   unsigned BW = VT.getSizeInBits();
   if (BW > 64)
     return false;
+
+  // Signed ILP32 comparisons must be done at 32-bits width because the pointer
+  // is zero-extended to 64-bits.
+  bool IsILP32Pointer = false;
+  if (Subtarget->isTargetILP32() && LHS->getType()->isPointerTy()) {
+    IsILP32Pointer = true;
+    BW = 32;
+  }
 
   MachineBasicBlock *TBB = FuncInfo.MBBMap[BI->getSuccessor(0)];
   MachineBasicBlock *FBB = FuncInfo.MBBMap[BI->getSuccessor(1)];
@@ -2418,7 +2459,7 @@ bool AArch64FastISel::emitCompareAndBranch(const BranchInst *BI) {
     return false;
   bool SrcIsKill = hasTrivialKill(LHS);
 
-  if (BW == 64 && !Is64Bit)
+  if ((BW == 64 && !Is64Bit) || IsILP32Pointer)
     SrcReg = fastEmitInst_extractsubreg(MVT::i32, SrcReg, SrcIsKill,
                                         AArch64::sub_32);
 

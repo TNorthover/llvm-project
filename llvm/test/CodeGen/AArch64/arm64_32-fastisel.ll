@@ -131,3 +131,67 @@ define i8* @test_gep_inbounds(i8* %in) {
 %res = getelementptr inbounds i8, i8* %in, i32 12
   ret i8* %res
 }
+
+define i1 @test_cmp_bitfield(i8* %in) {
+; CHECK-LABEL: test_cmp_bitfield:
+; CHECK: ubfx x0, x0, #31, #1
+
+  %tst = icmp slt i8* %in, null
+  ret i1 %tst
+}
+
+declare void @foo()
+declare void @bar()
+define void @test_cmp_cbnz(i8* %in) {
+; CHECK-LABEL: test_cmp_cbnz:
+; CHECK: mov [[TMP:w[0-9]+]], w0
+; CHECK: cbnz [[TMP]]
+
+  %tst = icmp eq i8* %in, null
+  br i1 %tst, label %true, label %false
+
+true:
+  call void @foo()
+  ret void
+
+false:
+  call void @bar()
+  ret void
+}
+
+define void @test_cmp_imm(i8* %in) {
+; CHECK-LABEL: test_cmp_imm:
+; CHECK: mov [[TMP:w[0-9]+]], w0
+; CHECK: subs {{w[0-9]+}}, [[TMP]], #41
+; CHECK: b.hi
+
+  %tst = icmp ult i8* %in, inttoptr(i32 42 to i8*)
+  br i1 %tst, label %true, label %false
+
+true:
+  call void @foo()
+  ret void
+
+false:
+  call void @bar()
+  ret void
+}
+
+define void @test_cmp_reg(i8* %lhs, i8* %rhs) {
+; CHECK-LABEL: test_cmp_reg:
+; CHECK: mov [[LHS:w[0-9]+]], w0
+; CHECK: mov [[RHS:w[0-9]+]], w1
+; CHECK: cmp [[LHS]], [[RHS]]
+; CHECK: b.hs
+
+  %tst = icmp ult i8* %lhs, %rhs
+  br i1 %tst, label %true, label %false
+
+true:
+  call void @foo()
+  ret void
+
+false:
+  call void @bar()
+  ret void
+}
