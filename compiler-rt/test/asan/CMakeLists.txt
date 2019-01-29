@@ -18,7 +18,9 @@ if (SHADOW_MAPPING_UNRELIABLE)
 endif()
 
 macro(get_bits_for_arch arch bits)
-  if (${arch} MATCHES "x86_64|powerpc64|powerpc64le|aarch64|arm64|mips64|mips64el|s390x")
+  if (${arch} STREQUAL "arm64_32")
+    set(${bits} 32)
+  elseif (${arch} MATCHES "x86_64|powerpc64|powerpc64le|aarch64|arm64|mips64|mips64el|s390x")
     set(${bits} 64)
   elseif (${arch} MATCHES "i386|arm|mips|mipsel")
     set(${bits} 32)
@@ -122,6 +124,23 @@ if(APPLE)
       ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_NAME}/lit.site.cfg
       )
     add_lit_testsuite(check-asan-ios-${arch} "AddressSanitizer iOS ${arch} tests"
+      ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_NAME}/
+      DEPENDS ${ASAN_TEST_DEPS})
+  endforeach()
+
+  foreach (arch ${DARWIN_watchos_ARCHS})
+    set(ASAN_TEST_APPLE_PLATFORM "watchos")
+    set(ASAN_TEST_TARGET_ARCH ${arch})
+    set(ASAN_TEST_TARGET_CFLAGS "-arch ${arch} -isysroot ${DARWIN_watchos_SYSROOT} ${COMPILER_RT_TEST_COMPILER_CFLAGS}")
+    set(ASAN_TEST_CONFIG_SUFFIX "-${arch}-${ASAN_TEST_APPLE_PLATFORM}")
+    get_bits_for_arch(${arch} ASAN_TEST_BITS)
+    string(TOUPPER ${arch} ARCH_UPPER_CASE)
+    set(CONFIG_NAME "WATCHOS${ARCH_UPPER_CASE}Config")
+    configure_lit_site_cfg(
+      ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.in
+      ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_NAME}/lit.site.cfg
+      )
+    add_lit_testsuite(check-asan-watchos-${arch} "AddressSanitizer watchOS ${arch} tests"
       ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_NAME}/
       DEPENDS ${ASAN_TEST_DEPS})
   endforeach()

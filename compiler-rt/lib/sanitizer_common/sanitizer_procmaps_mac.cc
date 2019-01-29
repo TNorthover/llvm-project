@@ -32,6 +32,19 @@
 #ifndef CPU_TYPE_ARM64
 #define CPU_TYPE_ARM64        (CPU_TYPE_ARM | CPU_ARCH_ABI64)
 #endif
+#ifndef CPU_ARCH_ABI64_32
+#define CPU_ARCH_ABI64_32 \
+  0x02000000 /* ABI for 64-bit hardware with 32-bit types; LP32 */
+#endif
+#ifndef CPU_TYPE_ARM64_32
+#define CPU_TYPE_ARM64_32 (CPU_TYPE_ARM | CPU_ARCH_ABI64_32)
+#endif
+#ifndef CPU_SUBTYPE_ARM64_32_ALL
+#define CPU_SUBTYPE_ARM64_32_ALL ((cpu_subtype_t)0)
+#endif
+#ifndef CPU_SUBTYPE_ARM64_32_V8
+#define CPU_SUBTYPE_ARM64_32_V8 ((cpu_subtype_t)1)
+#endif
 
 namespace __sanitizer {
 
@@ -255,6 +268,13 @@ ModuleArch ModuleArchFromCpuType(cpu_type_t cputype, cpu_subtype_t cpusubtype) {
       return kModuleArchUnknown;
     case CPU_TYPE_ARM64:
       return kModuleArchARM64;
+    case CPU_TYPE_ARM64_32:
+      if (cpusubtype == CPU_SUBTYPE_ARM64_32_V8) return kModuleArchARM64_32;
+      if (cpusubtype == CPU_SUBTYPE_ARM64_32_ALL) {
+        CHECK(0 && "CPU_SUBTYPE_ARM64_32_ALL cpu subtype not supported");
+      }
+      CHECK(0 && "Invalid CPU type");
+      return kModuleArchUnknown;
     default:
       CHECK(0 && "Invalid CPU type");
       return kModuleArchUnknown;

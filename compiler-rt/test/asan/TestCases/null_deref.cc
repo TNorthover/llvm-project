@@ -3,6 +3,9 @@
 // RUN: %clangxx_asan -O2 %s -o %t && not %run %t 2>&1 | FileCheck %s
 // RUN: %clangxx_asan -O3 %s -o %t && not %run %t 2>&1 | FileCheck %s
 
+// These platforms don't allow signal handlers, see rdar://problem/21952708.
+// UNSUPPORTED: watchos, tvos
+
 __attribute__((noinline))
 // FIXME: Static symbols don't show up in PDBs. We can remove this once we start
 // using DWARF.

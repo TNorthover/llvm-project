@@ -912,7 +912,8 @@ char **GetArgv() {
   return *_NSGetArgv();
 }
 
-#if defined(__aarch64__) && SANITIZER_IOS && !SANITIZER_IOSSIM
+#if SANITIZER_WORDSIZE == 64 && defined(__aarch64__) && SANITIZER_IOS && \
+    !SANITIZER_IOSSIM
 // The task_vm_info struct is normally provided by the macOS SDK, but we need
 // fields only available in 10.12+. Declare the struct manually to be able to
 // build against older SDKs.
@@ -967,6 +968,7 @@ uptr GetMaxUserVirtualAddress() {
   return (1ULL << 47) - 1;  // 0x00007fffffffffffUL;
 # endif
 #else  // SANITIZER_WORDSIZE == 32
+  static_assert(SANITIZER_WORDSIZE == 32, "Wrong wordsize");
   return (1ULL << 32) - 1;  // 0xffffffff;
 #endif  // SANITIZER_WORDSIZE
 }

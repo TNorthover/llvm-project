@@ -143,6 +143,11 @@ typedef signed   long sptr;  // NOLINT
 // Since x32 uses ILP32 data model in 64-bit hardware mode, we must use
 // 64-bit pointer to unwind stack frame.
 typedef unsigned long long uhwptr;  // NOLINT
+#elif defined(__aarch64__) && SANITIZER_WORDSIZE == 32
+// arm64_32 uses the ILP32 data model in 64-bit hardware mode.  We must use a
+// 64-bit pointer to unwind the stack frame because the `fp` and `lr` registers
+// written to the stack are 64 bits wide, not 32.
+typedef unsigned long long uhwptr;  // NOLINT
 #else
 typedef uptr uhwptr;   // NOLINT
 #endif

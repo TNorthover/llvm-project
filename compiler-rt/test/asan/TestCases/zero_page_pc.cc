@@ -1,6 +1,9 @@
 // Check that ASan correctly detects SEGV on the zero page.
 // RUN: %clangxx_asan %s -o %t && not %run %t 2>&1 | FileCheck %s
 
+// These platforms don't allow signal handlers, see rdar://problem/21952708.
+// UNSUPPORTED: watchos, tvos
+
 typedef void void_f();
 int main() {
   void_f *func = (void_f *)0x4;

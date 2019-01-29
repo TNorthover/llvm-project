@@ -231,6 +231,9 @@ class LLVMSymbolizerProcess : public SymbolizerProcess {
     const char* const kSymbolizerArch = "--default-arch=x86_64";
 #elif defined(__i386__)
     const char* const kSymbolizerArch = "--default-arch=i386";
+#elif defined(__aarch64__) && SANITIZER_WORDSIZE == 32
+    // arm64_32
+    const char *const kSymbolizerArch = "--default-arch=arm64_32";
 #elif defined(__aarch64__)
     const char* const kSymbolizerArch = "--default-arch=arm64";
 #elif defined(__arm__)
