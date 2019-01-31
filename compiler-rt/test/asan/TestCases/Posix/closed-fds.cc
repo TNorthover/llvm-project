@@ -7,8 +7,8 @@
 // RUN: FileCheck %s --check-prefix=CHECK-FILE < %t.log.*
 
 // FIXME: copy %t.log back from the device and re-enable on Android.
-// UNSUPPORTED: android
-// UNSUPPORTED: ios
+// FIXME: also failing on darwin bots: rdar://problem/27512998
+// UNSUPPORTED: android, darwin, ios
 
 #include <assert.h>
 #include <stdio.h>

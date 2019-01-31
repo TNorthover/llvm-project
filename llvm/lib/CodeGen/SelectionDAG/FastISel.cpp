@@ -1158,6 +1158,8 @@ bool FastISel::lowerCallTo(CallLoweringInfo &CLI) {
       MyFlags.VT = RegisterVT;
       MyFlags.ArgVT = VT;
       MyFlags.Used = CLI.IsReturnValueUsed;
+      if (CLI.RetTy->isPointerTy())
+        MyFlags.Flags.setPointer();
       if (CLI.RetSExt)
         MyFlags.Flags.setSExt();
       if (CLI.RetZExt)
@@ -1178,6 +1180,8 @@ bool FastISel::lowerCallTo(CallLoweringInfo &CLI) {
         FinalType, CLI.CallConv, CLI.IsVarArg);
 
     ISD::ArgFlagsTy Flags;
+    if (Arg.Ty->isPointerTy())
+      Flags.setPointer();
     if (Arg.IsZExt)
       Flags.setZExt();
     if (Arg.IsSExt)

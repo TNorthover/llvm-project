@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -triple arm64-unknown-linux -disable-O0-optnone -emit-llvm -o - %s | opt -S -mem2reg | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-LINUX
 // RUN: %clang_cc1 -triple aarch64-windows -disable-O0-optnone -S -emit-llvm -o - %s | opt -S -mem2reg | FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-WIN
+// RUN: %clang_cc1 -triple arm64_32-apple-ios -disable-O0-optnone -emit-llvm -o - %s | opt -S -mem2reg | FileCheck %s
 #include <stdint.h>
 
 void f0(void *a, void *b) {
@@ -7,10 +8,12 @@ void f0(void *a, void *b) {
 // CHECK: call {{.*}} @__clear_cache
 }
 
+#if __LP64__
 void *tp (void) {
   return __builtin_thread_pointer ();
-// CHECK: call {{.*}} @llvm.thread.pointer()
+// CHECK-LINUX: call {{.*}} @llvm.thread.pointer()
 }
+#endif
 
 // CHECK: call {{.*}} @llvm.bitreverse.i32(i32 %a)
 unsigned rbit(unsigned a) {

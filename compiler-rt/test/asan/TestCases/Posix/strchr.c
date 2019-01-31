@@ -4,6 +4,11 @@
 // RUN: %env_asan_opts=strict_string_checks=false %run %t 2>&1
 // RUN: %env_asan_opts=strict_string_checks=true not %run %t 2>&1 | FileCheck %s
 
+// FIXME: This test works except the FileCheck. Find a way to run
+// this test on watchos/tvos without doing the FileCheck.
+// These platforms don't allow signal handlers, see rdar://problem/21952708.
+// UNSUPPORTED: watchos, tvos
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>

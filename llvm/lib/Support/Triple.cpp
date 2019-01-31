@@ -261,6 +261,7 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     .Case("aarch64_be", aarch64_be)
     .Case("arc", arc)
     .Case("arm64", aarch64) // "arm64" is an alias for "aarch64"
+    .Case("arm64_32", aarch64) // "arm64" is an alias for "aarch64"
     .Case("arm", arm)
     .Case("armeb", armeb)
     .Case("avr", avr)
@@ -390,6 +391,7 @@ static Triple::ArchType parseArch(StringRef ArchName) {
     .Case("aarch64_be", Triple::aarch64_be)
     .Case("arc", Triple::arc)
     .Case("arm64", Triple::aarch64)
+    .Case("arm64_32", Triple::aarch64)
     .Case("arm", Triple::arm)
     .Case("armeb", Triple::armeb)
     .Case("thumb", Triple::thumb)

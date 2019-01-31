@@ -3,6 +3,9 @@
 // RUN: %clangxx_asan %s -o %t
 // RUN: not %run %t 2>&1 | FileCheck %s
 
+// These platforms don't allow signal handlers, see rdar://problem/21952708.
+// UNSUPPORTED: watchos, tvos
+
 #include <assert.h>
 #include <stdio.h>
 #include <sys/mman.h>

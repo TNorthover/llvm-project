@@ -37,7 +37,7 @@ set(WASM32 wasm32)
 set(WASM64 wasm64)
 
 if(APPLE)
-  set(ARM64 arm64)
+  set(ARM64 arm64 arm64_32)
   set(ARM32 armv7 armv7k armv7s)
   set(X86_64 x86_64 x86_64h)
 endif()
@@ -95,7 +95,7 @@ if(APPLE)
   endif()
 
   set(DARWIN_sim_ARCHS i386 x86_64)
-  set(DARWIN_device_ARCHS armv7 armv7s armv7k arm64)
+  set(DARWIN_device_ARCHS armv7 armv7s armv7k arm64 arm64_32)
 
   message(STATUS "OSX supported arches: ${DARWIN_osx_ARCHS}")
   foreach(arch ${DARWIN_osx_ARCHS})

@@ -18,15 +18,14 @@ declare void @barf(float, float)
 define void @t1() nounwind ssp {
 entry:
 ; ALL-LABEL: t1:
-; ALL-NOT: fmov
 ; NONEFP: ldr h0,{{.*}}
-; NONEFP: fmov s1, wzr
-; NONEFP: fmov d2, xzr
-; NONEFP: movi{{(.16b)?}} v3{{(.2d)?}}, #0
-; NONE16: fmov h0, wzr
-; NONE16: fmov s1, wzr
-; NONE16: fmov d2, xzr
-; NONE16: movi{{(.16b)?}} v3{{(.2d)?}}, #0
+; NONEFP-DAG: fmov s1, wzr
+; NONEFP-DAG: fmov d2, xzr
+; NONEFP-DAG: movi{{(.16b)?}} v3{{(.2d)?}}, #0
+; NONE16-DAG: fmov h0, wzr
+; NONE16-DAG: fmov s1, wzr
+; NONE16-DAG: fmov d2, xzr
+; NONE16-DAG: movi{{(.16b)?}} v3{{(.2d)?}}, #0
 ; ZEROFP: ldr h0,{{.*}}
 ; ZEROFP: movi v{{[0-3]+}}.2d, #0
 ; ZEROFP: movi v{{[0-3]+}}.2d, #0
