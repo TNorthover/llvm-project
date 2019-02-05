@@ -132,6 +132,11 @@ static cl::opt<cl::boolOrDefault>
     EnableGlobalMerge("aarch64-enable-global-merge", cl::Hidden,
                       cl::desc("Enable the global merge pass"));
 
+namespace llvm {
+  void initializeAArch64PromotePointerPass(PassRegistry &);
+
+}
+
 static cl::opt<bool>
     EnableLoopDataPrefetch("aarch64-enable-loop-data-prefetch", cl::Hidden,
                            cl::desc("Enable the loop data prefetch pass"),
@@ -171,6 +176,7 @@ extern "C" void LLVMInitializeAArch64Target() {
   initializeAArch64SIMDInstrOptPass(*PR);
   initializeAArch64PreLegalizerCombinerPass(*PR);
   initializeAArch64PromoteConstantPass(*PR);
+  initializeAArch64PromotePointerPass(*PR);
   initializeAArch64RedundantCopyEliminationPass(*PR);
   initializeAArch64StorePairSuppressPass(*PR);
   initializeFalkorHWPFFixPass(*PR);
@@ -397,6 +403,10 @@ TargetPassConfig *AArch64TargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 void AArch64PassConfig::addIRPasses() {
+  // FIXME: check ILP32!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  if (true)
+    addPass(createAArch64PromotePointerPass());
+
   // Always expand atomic operations, we don't deal with atomicrmw or cmpxchg
   // ourselves.
   addPass(createAtomicExpandPass());

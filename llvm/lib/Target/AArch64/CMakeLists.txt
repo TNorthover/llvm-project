@@ -49,6 +49,7 @@ add_llvm_target(AArch64CodeGen
   AArch64MCInstLower.cpp
   AArch64PreLegalizerCombiner.cpp
   AArch64PromoteConstant.cpp
+  AArch64PromotePointerPass.cpp
   AArch64PBQPRegAlloc.cpp
   AArch64RegisterBankInfo.cpp
   AArch64RegisterInfo.cpp
