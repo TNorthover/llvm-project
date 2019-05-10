@@ -368,10 +368,10 @@ static Value *emitUnaryMaybeConstrainedFPBuiltin(CodeGenFunction &CGF,
   llvm::Value *Src0 = CGF.EmitScalarExpr(E->getArg(0));
 
   if (CGF.Builder.getIsFPConstrained()) {
-    Value *F = CGF.CGM.getIntrinsic(ConstrainedIntrinsicID, Src0->getType());
+    Function *F = CGF.CGM.getIntrinsic(ConstrainedIntrinsicID, Src0->getType());
     return CGF.Builder.CreateConstrainedFPCall(F, { Src0 });
   } else {
-    Value *F = CGF.CGM.getIntrinsic(IntrinsicID, Src0->getType());
+    Function *F = CGF.CGM.getIntrinsic(IntrinsicID, Src0->getType());
     return CGF.Builder.CreateCall(F, Src0);
   }
 }
@@ -385,10 +385,10 @@ static Value *emitBinaryMaybeConstrainedFPBuiltin(CodeGenFunction &CGF,
   llvm::Value *Src1 = CGF.EmitScalarExpr(E->getArg(1));
 
   if (CGF.Builder.getIsFPConstrained()) {
-    Value *F = CGF.CGM.getIntrinsic(ConstrainedIntrinsicID, Src0->getType());
+    Function *F = CGF.CGM.getIntrinsic(ConstrainedIntrinsicID, Src0->getType());
     return CGF.Builder.CreateConstrainedFPCall(F, { Src0, Src1 });
   } else {
-    Value *F = CGF.CGM.getIntrinsic(IntrinsicID, Src0->getType());
+    Function *F = CGF.CGM.getIntrinsic(IntrinsicID, Src0->getType());
     return CGF.Builder.CreateCall(F, { Src0, Src1 });
   }
 }
@@ -403,10 +403,10 @@ static Value *emitTernaryMaybeConstrainedFPBuiltin(CodeGenFunction &CGF,
   llvm::Value *Src2 = CGF.EmitScalarExpr(E->getArg(2));
 
   if (CGF.Builder.getIsFPConstrained()) {
-    Value *F = CGF.CGM.getIntrinsic(ConstrainedIntrinsicID, Src0->getType());
+    Function *F = CGF.CGM.getIntrinsic(ConstrainedIntrinsicID, Src0->getType());
     return CGF.Builder.CreateConstrainedFPCall(F, { Src0, Src1, Src2 });
   } else {
-    Value *F = CGF.CGM.getIntrinsic(IntrinsicID, Src0->getType());
+    Function *F = CGF.CGM.getIntrinsic(IntrinsicID, Src0->getType());
     return CGF.Builder.CreateCall(F, { Src0, Src1, Src2 });
   }
 }
@@ -3926,7 +3926,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       auto *Zero = llvm::ConstantInt::get(IntTy, 0);
       for (unsigned I = First; I < NumArgs; ++I) {
         auto *Index = llvm::ConstantInt::get(IntTy, I - First);
-        auto *GEP = Builder.CreateGEP(TmpPtr, {Zero, Index});
+        auto *GEP =
+            Builder.CreateGEP(Tmp.getElementType(), TmpPtr, {Zero, Index});
         if (I == First)
           ElemPtr = GEP;
         auto *V =
@@ -12599,7 +12600,7 @@ Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
       Ops[0] = Builder.CreateBitCast(Ops[0], Int8PtrTy);
     }else {
       Ops[1] = Builder.CreateBitCast(Ops[1], Int8PtrTy);
-      Ops[0] = Builder.CreateGEP(Ops[1], Ops[0]);
+      Ops[0] = Builder.CreateGEP(Int8Ty, Ops[1], Ops[0]);
       Ops.pop_back();
     }
 
@@ -12667,7 +12668,7 @@ Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
       Ops[1] = Builder.CreateBitCast(Ops[1], Int8PtrTy);
     }else {
       Ops[2] = Builder.CreateBitCast(Ops[2], Int8PtrTy);
-      Ops[1] = Builder.CreateGEP(Ops[2], Ops[1]);
+      Ops[1] = Builder.CreateGEP(Int8Ty, Ops[2], Ops[1]);
       Ops.pop_back();
     }
 
@@ -13130,7 +13131,7 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
     llvm::Value *Src2 = EmitScalarExpr(E->getArg(2));
 
     // FIXME-GFX10: How should 32 bit mask be handled?
-    Value *F = CGM.getIntrinsic(Intrinsic::amdgcn_icmp,
+    Function *F = CGM.getIntrinsic(Intrinsic::amdgcn_icmp,
       { Builder.getInt64Ty(), Src0->getType() });
     return Builder.CreateCall(F, { Src0, Src1, Src2 });
   }
@@ -13141,7 +13142,7 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
     llvm::Value *Src2 = EmitScalarExpr(E->getArg(2));
 
     // FIXME-GFX10: How should 32 bit mask be handled?
-    Value *F = CGM.getIntrinsic(Intrinsic::amdgcn_fcmp,
+    Function *F = CGM.getIntrinsic(Intrinsic::amdgcn_fcmp,
       { Builder.getInt64Ty(), Src0->getType() });
     return Builder.CreateCall(F, { Src0, Src1, Src2 });
   }
@@ -14115,7 +14116,7 @@ CodeGenFunction::EmitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
         Builder.CreateAlignedStore(
             Builder.CreateBitCast(Builder.CreateExtractValue(Result, i),
                                   Dst.getElementType()),
-            Builder.CreateGEP(Dst.getPointer(),
+            Builder.CreateGEP(Dst.getElementType(), Dst.getPointer(),
                               llvm::ConstantInt::get(IntTy, i)),
             CharUnits::fromQuantity(4));
       }
@@ -14151,7 +14152,8 @@ CodeGenFunction::EmitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
     SmallVector<Value *, 10> Values = {Dst};
     for (unsigned i = 0; i < II.NumResults; ++i) {
       Value *V = Builder.CreateAlignedLoad(
-          Builder.CreateGEP(Src.getPointer(), llvm::ConstantInt::get(IntTy, i)),
+          Builder.CreateGEP(Src.getElementType(), Src.getPointer(),
+                            llvm::ConstantInt::get(IntTy, i)),
           CharUnits::fromQuantity(4));
       Values.push_back(Builder.CreateBitCast(V, ParamType));
     }
@@ -14210,7 +14212,7 @@ CodeGenFunction::EmitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
     // Load A
     for (unsigned i = 0; i < MI.NumEltsA; ++i) {
       Value *V = Builder.CreateAlignedLoad(
-          Builder.CreateGEP(SrcA.getPointer(),
+          Builder.CreateGEP(SrcA.getElementType(), SrcA.getPointer(),
                             llvm::ConstantInt::get(IntTy, i)),
           CharUnits::fromQuantity(4));
       Values.push_back(Builder.CreateBitCast(V, AType));
@@ -14219,7 +14221,7 @@ CodeGenFunction::EmitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
     llvm::Type *BType = Intrinsic->getFunctionType()->getParamType(MI.NumEltsA);
     for (unsigned i = 0; i < MI.NumEltsB; ++i) {
       Value *V = Builder.CreateAlignedLoad(
-          Builder.CreateGEP(SrcB.getPointer(),
+          Builder.CreateGEP(SrcB.getElementType(), SrcB.getPointer(),
                             llvm::ConstantInt::get(IntTy, i)),
           CharUnits::fromQuantity(4));
       Values.push_back(Builder.CreateBitCast(V, BType));
@@ -14229,7 +14231,7 @@ CodeGenFunction::EmitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
         Intrinsic->getFunctionType()->getParamType(MI.NumEltsA + MI.NumEltsB);
     for (unsigned i = 0; i < MI.NumEltsC; ++i) {
       Value *V = Builder.CreateAlignedLoad(
-          Builder.CreateGEP(SrcC.getPointer(),
+          Builder.CreateGEP(SrcC.getElementType(), SrcC.getPointer(),
                             llvm::ConstantInt::get(IntTy, i)),
           CharUnits::fromQuantity(4));
       Values.push_back(Builder.CreateBitCast(V, CType));
@@ -14239,7 +14241,8 @@ CodeGenFunction::EmitNVPTXBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
     for (unsigned i = 0; i < MI.NumEltsD; ++i)
       Builder.CreateAlignedStore(
           Builder.CreateBitCast(Builder.CreateExtractValue(Result, i), DType),
-          Builder.CreateGEP(Dst.getPointer(), llvm::ConstantInt::get(IntTy, i)),
+          Builder.CreateGEP(Dst.getElementType(), Dst.getPointer(),
+                            llvm::ConstantInt::get(IntTy, i)),
           CharUnits::fromQuantity(4));
     return Result;
   }

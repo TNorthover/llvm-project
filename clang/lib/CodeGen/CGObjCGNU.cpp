@@ -944,7 +944,7 @@ class CGObjCGNUstep2 : public CGObjCGNUstep {
   /// Generate the name of a symbol for a reference to a class.  Accesses to
   /// classes should be indirected via this.
 
-  typedef std::pair<std::string, std::pair<llvm::Constant*, int>> EarlyInitPair;
+  typedef std::pair<std::string, std::pair<llvm::GlobalVariable*, int>> EarlyInitPair;
   std::vector<EarlyInitPair> EarlyInitList;
 
   std::string SymbolForClassRef(StringRef Name, bool isWeak) {
@@ -1106,7 +1106,7 @@ class CGObjCGNUstep2 : public CGObjCGNUstep {
       ObjCStrGV->setVisibility(llvm::GlobalValue::HiddenVisibility);
     }
     if (CGM.getTriple().isOSBinFormatCOFF()) {
-      std::pair<llvm::Constant*, int> v{ObjCStrGV, 0};
+      std::pair<llvm::GlobalVariable*, int> v{ObjCStrGV, 0};
       EarlyInitList.emplace_back(Sym, v);
     }
     llvm::Constant *ObjCStr = llvm::ConstantExpr::getBitCast(ObjCStrGV, IdTy);
@@ -1643,11 +1643,15 @@ class CGObjCGNUstep2 : public CGObjCGNUstep {
           &CGM.getModule());
       llvm::IRBuilder<> b(llvm::BasicBlock::Create(CGM.getLLVMContext(), "entry",
             Init));
+      llvm_unreachable("Wibble");
       for (const auto &lateInit : EarlyInitList) {
         auto *global = TheModule.getGlobalVariable(lateInit.first);
         if (global) {
-          b.CreateAlignedStore(global,
-              b.CreateStructGEP(lateInit.second.first, lateInit.second.second), CGM.getPointerAlign().getQuantity());
+          b.CreateAlignedStore(
+              global,
+              b.CreateStructGEP(lateInit.second.first->getValueType(),
+                                lateInit.second.first, lateInit.second.second),
+              CGM.getPointerAlign().getQuantity());
         }
       }
       b.CreateRetVoid();
@@ -1941,7 +1945,7 @@ class CGObjCGNUstep2 : public CGObjCGNUstep {
       }
 
       if (SuperClass) {
-        std::pair<llvm::Constant*, int> v{classStruct, 1};
+        std::pair<llvm::GlobalVariable*, int> v{classStruct, 1};
         EarlyInitList.emplace_back(SuperClass->getName(), std::move(v));
       }
 

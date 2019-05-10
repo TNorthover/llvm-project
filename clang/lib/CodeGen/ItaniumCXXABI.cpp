@@ -621,7 +621,7 @@ CGCallee ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(
   // for consistency.
   llvm::Value *This = ThisAddr.getPointer();
   llvm::Value *Ptr = Builder.CreateBitCast(This, Builder.getInt8PtrTy());
-  Ptr = Builder.CreateInBoundsGEP(Ptr, Adj);
+  Ptr = Builder.CreateInBoundsGEP(CGF.Int8Ty, Ptr, Adj);
   This = Builder.CreateBitCast(Ptr, This->getType(), "this.adjusted");
   ThisPtrForCall = This;
 
@@ -644,12 +644,12 @@ CGCallee ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(
   CGF.EmitBlock(FnVirtual);
 
   // Cast the adjusted this to a pointer to vtable pointer and load.
-  llvm::Type *VTableTy = Builder.getInt8PtrTy();
+  llvm::Type *VTableTy = Builder.getInt8Ty();
   CharUnits VTablePtrAlign =
     CGF.CGM.getDynamicOffsetAlignment(ThisAddr.getAlignment(), RD,
                                       CGF.getPointerAlign());
-  llvm::Value *VTable =
-    CGF.GetVTablePtr(Address(This, VTablePtrAlign), VTableTy, RD);
+  llvm::Value *VTable = CGF.GetVTablePtr(Address(This, VTablePtrAlign),
+                                         VTableTy->getPointerTo(), RD);
 
   // Apply the offset.
   // On ARM64, to reserve extra space in virtual member function pointers,
@@ -684,7 +684,7 @@ CGCallee ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(
       TypeId = llvm::MetadataAsValue::get(CGF.getLLVMContext(), MD);
     }
 
-    llvm::Value *VFPAddr = Builder.CreateGEP(VTable, VTableOffset);
+    llvm::Value *VFPAddr = Builder.CreateGEP(VTableTy, VTable, VTableOffset);
 
     if (ShouldEmitVFEInfo) {
       // If doing VFE, load from the vtable with a type.checked.load intrinsic
@@ -811,8 +811,8 @@ llvm::Value *ItaniumCXXABI::EmitMemberDataPointerAddress(
   Base = Builder.CreateElementBitCast(Base, CGF.Int8Ty);
 
   // Apply the offset, which we assume is non-null.
-  llvm::Value *Addr =
-    Builder.CreateInBoundsGEP(Base.getPointer(), MemPtr, "memptr.offset");
+  llvm::Value *Addr = Builder.CreateInBoundsGEP(
+      Base.getElementType(), Base.getPointer(), MemPtr, "memptr.offset");
 
   // Cast the address to the appropriate pointer type, adopting the
   // address space of the base pointer.
@@ -1201,14 +1201,15 @@ void ItaniumCXXABI::emitVirtualObjectDelete(CodeGenFunction &CGF,
 
     // Track back to entry -2 and pull out the offset there.
     llvm::Value *OffsetPtr = CGF.Builder.CreateConstInBoundsGEP1_64(
-        VTable, -2, "complete-offset.ptr");
+        CGF.IntPtrTy, VTable, -2, "complete-offset.ptr");
     llvm::Value *Offset =
       CGF.Builder.CreateAlignedLoad(OffsetPtr, CGF.getPointerAlign());
 
     // Apply the offset.
     llvm::Value *CompletePtr =
       CGF.Builder.CreateBitCast(Ptr.getPointer(), CGF.Int8PtrTy);
-    CompletePtr = CGF.Builder.CreateInBoundsGEP(CompletePtr, Offset);
+    CompletePtr =
+        CGF.Builder.CreateInBoundsGEP(CGF.Int8Ty, CompletePtr, Offset);
 
     // If we're supposed to call the global delete, make sure we do so
     // even if the destructor throws.
@@ -1403,7 +1404,8 @@ llvm::Value *ItaniumCXXABI::EmitTypeid(CodeGenFunction &CGF,
       CGF.GetVTablePtr(ThisPtr, StdTypeInfoPtrTy->getPointerTo(), ClassDecl);
 
   // Load the type info.
-  Value = CGF.Builder.CreateConstInBoundsGEP1_64(Value, -1ULL);
+  Value =
+      CGF.Builder.CreateConstInBoundsGEP1_64(StdTypeInfoPtrTy, Value, -1ULL);
   return CGF.Builder.CreateAlignedLoad(Value, CGF.getPointerAlign());
 }
 
@@ -1466,12 +1468,12 @@ llvm::Value *ItaniumCXXABI::EmitDynamicCastToVoid(CodeGenFunction &CGF,
   auto *ClassDecl =
       cast<CXXRecordDecl>(SrcRecordTy->castAs<RecordType>()->getDecl());
   // Get the vtable pointer.
-  llvm::Value *VTable = CGF.GetVTablePtr(ThisAddr, PtrDiffLTy->getPointerTo(),
-      ClassDecl);
+  llvm::Value *VTable =
+      CGF.GetVTablePtr(ThisAddr, PtrDiffLTy->getPointerTo(), ClassDecl);
 
   // Get the offset-to-top from the vtable.
   llvm::Value *OffsetToTop =
-      CGF.Builder.CreateConstInBoundsGEP1_64(VTable, -2ULL);
+      CGF.Builder.CreateConstInBoundsGEP1_64(PtrDiffLTy, VTable, -2ULL);
   OffsetToTop =
     CGF.Builder.CreateAlignedLoad(OffsetToTop, CGF.getPointerAlign(),
                                   "offset.to.top");
@@ -1479,7 +1481,7 @@ llvm::Value *ItaniumCXXABI::EmitDynamicCastToVoid(CodeGenFunction &CGF,
   // Finally, add the offset to the pointer.
   llvm::Value *Value = ThisAddr.getPointer();
   Value = CGF.EmitCastToVoidPtr(Value);
-  Value = CGF.Builder.CreateInBoundsGEP(Value, OffsetToTop);
+  Value = CGF.Builder.CreateInBoundsGEP(CGF.Int8Ty, Value, OffsetToTop);
 
   return CGF.Builder.CreateBitCast(Value, DestLTy);
 }
@@ -1502,9 +1504,9 @@ ItaniumCXXABI::GetVirtualBaseClassOffset(CodeGenFunction &CGF,
       CGM.getItaniumVTableContext().getVirtualBaseOffsetOffset(ClassDecl,
                                                                BaseClassDecl);
 
-  llvm::Value *VBaseOffsetPtr =
-    CGF.Builder.CreateConstGEP1_64(VTablePtr, VBaseOffsetOffset.getQuantity(),
-                                   "vbase.offset.ptr");
+  llvm::Value *VBaseOffsetPtr = CGF.Builder.CreateConstGEP1_64(
+      CGM.Int8Ty, VTablePtr, VBaseOffsetOffset.getQuantity(),
+      "vbase.offset.ptr");
   VBaseOffsetPtr = CGF.Builder.CreateBitCast(VBaseOffsetPtr,
                                              CGM.PtrDiffTy->getPointerTo());
 
@@ -1743,7 +1745,8 @@ llvm::Value *ItaniumCXXABI::getVTableAddressPointInStructorWithVTT(
   /// Load the VTT.
   llvm::Value *VTT = CGF.LoadCXXVTT();
   if (VirtualPointerIndex)
-    VTT = CGF.Builder.CreateConstInBoundsGEP1_64(VTT, VirtualPointerIndex);
+    VTT = CGF.Builder.CreateConstInBoundsGEP1_64(CGF.Int8PtrTy, VTT,
+                                                 VirtualPointerIndex);
 
   // And load the address point from the VTT.
   return CGF.Builder.CreateAlignedLoad(VTT, CGF.getPointerAlign());
@@ -1793,9 +1796,9 @@ CGCallee ItaniumCXXABI::getVirtualFunctionPointer(CodeGenFunction &CGF,
                                                   Address This,
                                                   llvm::Type *Ty,
                                                   SourceLocation Loc) {
-  Ty = Ty->getPointerTo()->getPointerTo();
+  Ty = Ty->getPointerTo();
   auto *MethodDecl = cast<CXXMethodDecl>(GD.getDecl());
-  llvm::Value *VTable = CGF.GetVTablePtr(This, Ty, MethodDecl->getParent());
+  llvm::Value *VTable = CGF.GetVTablePtr(This, Ty->getPointerTo(), MethodDecl->getParent());
 
   uint64_t VTableIndex = CGM.getItaniumVTableContext().getMethodVTableIndex(GD);
   llvm::Value *VFunc;
@@ -1807,7 +1810,7 @@ CGCallee ItaniumCXXABI::getVirtualFunctionPointer(CodeGenFunction &CGF,
     CGF.EmitTypeMetadataCodeForVCall(MethodDecl->getParent(), VTable, Loc);
 
     llvm::Value *VFuncPtr =
-        CGF.Builder.CreateConstInBoundsGEP1_64(VTable, VTableIndex, "vfn");
+        CGF.Builder.CreateConstInBoundsGEP1_64(Ty, VTable, VTableIndex, "vfn");
     auto *VFuncLoad =
         CGF.Builder.CreateAlignedLoad(VFuncPtr, CGF.getPointerAlign());
 
@@ -1945,8 +1948,8 @@ static llvm::Value *performTypeAdjustment(CodeGenFunction &CGF,
     Address VTablePtrPtr = CGF.Builder.CreateElementBitCast(V, CGF.Int8PtrTy);
     llvm::Value *VTablePtr = CGF.Builder.CreateLoad(VTablePtrPtr);
 
-    llvm::Value *OffsetPtr =
-        CGF.Builder.CreateConstInBoundsGEP1_64(VTablePtr, VirtualAdjustment);
+    llvm::Value *OffsetPtr = CGF.Builder.CreateConstInBoundsGEP1_64(
+        CGF.Int8Ty, VTablePtr, VirtualAdjustment);
 
     OffsetPtr = CGF.Builder.CreateBitCast(OffsetPtr, PtrDiffTy->getPointerTo());
 
@@ -1955,7 +1958,8 @@ static llvm::Value *performTypeAdjustment(CodeGenFunction &CGF,
       CGF.Builder.CreateAlignedLoad(OffsetPtr, CGF.getPointerAlign());
 
     // Adjust our pointer.
-    ResultPtr = CGF.Builder.CreateInBoundsGEP(V.getPointer(), Offset);
+    ResultPtr = CGF.Builder.CreateInBoundsGEP(V.getElementType(),
+                                              V.getPointer(), Offset);
   } else {
     ResultPtr = V.getPointer();
   }
@@ -1963,8 +1967,8 @@ static llvm::Value *performTypeAdjustment(CodeGenFunction &CGF,
   // In a derived-to-base conversion, the non-virtual adjustment is
   // applied second.
   if (NonVirtualAdjustment && IsReturnAdjustment) {
-    ResultPtr = CGF.Builder.CreateConstInBoundsGEP1_64(ResultPtr,
-                                                       NonVirtualAdjustment);
+    ResultPtr = CGF.Builder.CreateConstInBoundsGEP1_64(
+        V.getElementType(), ResultPtr, NonVirtualAdjustment);
   }
 
   // Cast back to the original type.
@@ -4136,22 +4140,23 @@ static void InitCatchParam(CodeGenFunction &CGF,
         // we have to skip past in order to reach the exception data.
         unsigned HeaderSize =
           CGF.CGM.getTargetCodeGenInfo().getSizeOfUnwindException();
-        AdjustedExn = CGF.Builder.CreateConstGEP1_32(Exn, HeaderSize);
+        AdjustedExn =
+            CGF.Builder.CreateConstGEP1_32(CGF.Int8Ty, Exn, HeaderSize);
 
-      // However, if we're catching a pointer-to-record type that won't
-      // work, because the personality function might have adjusted
-      // the pointer.  There's actually no way for us to fully satisfy
-      // the language/ABI contract here:  we can't use Exn because it
-      // might have the wrong adjustment, but we can't use the by-value
-      // pointer because it's off by a level of abstraction.
-      //
-      // The current solution is to dump the adjusted pointer into an
-      // alloca, which breaks language semantics (because changing the
-      // pointer doesn't change the exception) but at least works.
-      // The better solution would be to filter out non-exact matches
-      // and rethrow them, but this is tricky because the rethrow
-      // really needs to be catchable by other sites at this landing
-      // pad.  The best solution is to fix the personality function.
+        // However, if we're catching a pointer-to-record type that won't
+        // work, because the personality function might have adjusted
+        // the pointer.  There's actually no way for us to fully satisfy
+        // the language/ABI contract here:  we can't use Exn because it
+        // might have the wrong adjustment, but we can't use the by-value
+        // pointer because it's off by a level of abstraction.
+        //
+        // The current solution is to dump the adjusted pointer into an
+        // alloca, which breaks language semantics (because changing the
+        // pointer doesn't change the exception) but at least works.
+        // The better solution would be to filter out non-exact matches
+        // and rethrow them, but this is tricky because the rethrow
+        // really needs to be catchable by other sites at this landing
+        // pad.  The best solution is to fix the personality function.
       } else {
         // Pull the pointer for the reference type off.
         llvm::Type *PtrTy =

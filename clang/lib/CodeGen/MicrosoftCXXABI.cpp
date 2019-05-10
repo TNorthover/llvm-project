@@ -921,7 +921,8 @@ MicrosoftCXXABI::performBaseAdjustment(CodeGenFunction &CGF, Address Value,
 
   llvm::Value *Offset =
     GetVirtualBaseClassOffset(CGF, Value, SrcDecl, PolymorphicBase);
-  llvm::Value *Ptr = CGF.Builder.CreateInBoundsGEP(Value.getPointer(), Offset);
+  llvm::Value *Ptr = CGF.Builder.CreateInBoundsGEP(Value.getElementType(),
+                                                   Value.getPointer(), Offset);
   CharUnits VBaseAlign =
     CGF.CGM.getVBaseAlignment(Value.getAlignment(), SrcDecl, PolymorphicBase);
   return std::make_tuple(Address(Ptr, VBaseAlign), Offset, PolymorphicBase);
@@ -1199,9 +1200,10 @@ void MicrosoftCXXABI::initializeHiddenVirtualInheritanceMembers(
     if (!Int8This)
       Int8This = Builder.CreateBitCast(getThisValue(CGF),
                                        CGF.Int8Ty->getPointerTo(AS));
-    llvm::Value *VtorDispPtr = Builder.CreateInBoundsGEP(Int8This, VBaseOffset);
+    llvm::Value *VtorDispPtr =
+        Builder.CreateInBoundsGEP(CGF.Int8Ty, Int8This, VBaseOffset);
     // vtorDisp is always the 32-bits before the vbase in the class layout.
-    VtorDispPtr = Builder.CreateConstGEP1_32(VtorDispPtr, -4);
+    VtorDispPtr = Builder.CreateConstGEP1_32(CGF.Int8Ty, VtorDispPtr, -4);
     VtorDispPtr = Builder.CreateBitCast(
         VtorDispPtr, CGF.Int32Ty->getPointerTo(AS), "vtordisp.ptr");
 
@@ -1435,8 +1437,8 @@ Address MicrosoftCXXABI::adjustThisArgumentForVirtualFunctionCall(
     const CXXRecordDecl *VBase = ML.VBase;
     llvm::Value *VBaseOffset =
       GetVirtualBaseClassOffset(CGF, Result, Derived, VBase);
-    llvm::Value *VBasePtr =
-      CGF.Builder.CreateInBoundsGEP(Result.getPointer(), VBaseOffset);
+    llvm::Value *VBasePtr = CGF.Builder.CreateInBoundsGEP(
+        Result.getElementType(), Result.getPointer(), VBaseOffset);
     CharUnits VBaseAlign =
       CGF.CGM.getVBaseAlignment(Result.getAlignment(), Derived, VBase);
     Result = Address(VBasePtr, VBaseAlign);
@@ -1872,12 +1874,13 @@ CGCallee MicrosoftCXXABI::getVirtualFunctionPointer(CodeGenFunction &CGF,
                                                     SourceLocation Loc) {
   CGBuilderTy &Builder = CGF.Builder;
 
-  Ty = Ty->getPointerTo()->getPointerTo();
+  Ty = Ty->getPointerTo();
   Address VPtr =
       adjustThisArgumentForVirtualFunctionCall(CGF, GD, This, true);
 
   auto *MethodDecl = cast<CXXMethodDecl>(GD.getDecl());
-  llvm::Value *VTable = CGF.GetVTablePtr(VPtr, Ty, MethodDecl->getParent());
+  llvm::Value *VTable =
+      CGF.GetVTablePtr(VPtr, Ty->getPointerTo(), MethodDecl->getParent());
 
   MicrosoftVTableContext &VFTContext = CGM.getMicrosoftVTableContext();
   MethodVFTableLocation ML = VFTContext.getMethodVFTableLocation(GD);
@@ -1904,7 +1907,7 @@ CGCallee MicrosoftCXXABI::getVirtualFunctionPointer(CodeGenFunction &CGF,
       CGF.EmitTypeMetadataCodeForVCall(getObjectWithVPtr(), VTable, Loc);
 
     llvm::Value *VFuncPtr =
-        Builder.CreateConstInBoundsGEP1_64(VTable, ML.Index, "vfn");
+        Builder.CreateConstInBoundsGEP1_64(Ty, VTable, ML.Index, "vfn");
     VFunc = Builder.CreateAlignedLoad(VFuncPtr, CGF.getPointerAlign());
   }
 
@@ -2033,11 +2036,12 @@ MicrosoftCXXABI::EmitVirtualMemPtrThunk(const CXXMethodDecl *MD,
 
   // Load the vfptr and then callee from the vftable.  The callee should have
   // adjusted 'this' so that the vfptr is at offset zero.
+  llvm::Type *VTableTy = ThunkTy->getPointerTo();
   llvm::Value *VTable = CGF.GetVTablePtr(
-      getThisAddress(CGF), ThunkTy->getPointerTo()->getPointerTo(), MD->getParent());
+      getThisAddress(CGF), VTableTy->getPointerTo(), MD->getParent());
 
   llvm::Value *VFuncPtr =
-      CGF.Builder.CreateConstInBoundsGEP1_64(VTable, ML.Index, "vfn");
+      CGF.Builder.CreateConstInBoundsGEP1_64(VTableTy, VTable, ML.Index, "vfn");
   llvm::Value *Callee =
     CGF.Builder.CreateAlignedLoad(VFuncPtr, CGF.getPointerAlign());
 
@@ -2154,7 +2158,7 @@ llvm::Value *MicrosoftCXXABI::performThisAdjustment(CodeGenFunction &CGF,
                  CharUnits::fromQuantity(TA.Virtual.Microsoft.VtordispOffset));
     VtorDispPtr = CGF.Builder.CreateElementBitCast(VtorDispPtr, CGF.Int32Ty);
     llvm::Value *VtorDisp = CGF.Builder.CreateLoad(VtorDispPtr, "vtordisp");
-    V = CGF.Builder.CreateGEP(This.getPointer(),
+    V = CGF.Builder.CreateGEP(This.getElementType(), This.getPointer(),
                               CGF.Builder.CreateNeg(VtorDisp));
 
     // Unfortunately, having applied the vtordisp means that we no
@@ -2172,7 +2176,7 @@ llvm::Value *MicrosoftCXXABI::performThisAdjustment(CodeGenFunction &CGF,
           GetVBaseOffsetFromVBPtr(CGF, Address(V, CGF.getPointerAlign()),
                                   -TA.Virtual.Microsoft.VBPtrOffset,
                                   TA.Virtual.Microsoft.VBOffsetOffset, &VBPtr);
-      V = CGF.Builder.CreateInBoundsGEP(VBPtr, VBaseOffset);
+      V = CGF.Builder.CreateInBoundsGEP(CGF.Int8Ty, VBPtr, VBaseOffset);
     }
   }
 
@@ -2180,7 +2184,7 @@ llvm::Value *MicrosoftCXXABI::performThisAdjustment(CodeGenFunction &CGF,
     // Non-virtual adjustment might result in a pointer outside the allocated
     // object, e.g. if the final overrider class is laid out after the virtual
     // base that declares a method in the most derived class.
-    V = CGF.Builder.CreateConstGEP1_32(V, TA.NonVirtual);
+    V = CGF.Builder.CreateConstGEP1_32(CGF.Int8Ty, V, TA.NonVirtual);
   }
 
   // Don't need to bitcast back, the call CodeGen will handle this.
@@ -2204,7 +2208,7 @@ MicrosoftCXXABI::performReturnAdjustment(CodeGenFunction &CGF, Address Ret,
     llvm::Value *VBaseOffset =
         GetVBaseOffsetFromVBPtr(CGF, Ret, RA.Virtual.Microsoft.VBPtrOffset,
                                 IntSize * RA.Virtual.Microsoft.VBIndex, &VBPtr);
-    V = CGF.Builder.CreateInBoundsGEP(VBPtr, VBaseOffset);
+    V = CGF.Builder.CreateInBoundsGEP(CGF.Int8Ty, VBPtr, VBaseOffset);
   }
 
   if (RA.NonVirtual)
@@ -2969,8 +2973,8 @@ MicrosoftCXXABI::GetVBaseOffsetFromVBPtr(CodeGenFunction &CGF,
   CGBuilderTy &Builder = CGF.Builder;
   // Load the vbtable pointer from the vbptr in the instance.
   This = Builder.CreateElementBitCast(This, CGM.Int8Ty);
-  llvm::Value *VBPtr =
-    Builder.CreateInBoundsGEP(This.getPointer(), VBPtrOffset, "vbptr");
+  llvm::Value *VBPtr = Builder.CreateInBoundsGEP(
+      This.getElementType(), This.getPointer(), VBPtrOffset, "vbptr");
   if (VBPtrOut) *VBPtrOut = VBPtr;
   VBPtr = Builder.CreateBitCast(VBPtr,
             CGM.Int32Ty->getPointerTo(0)->getPointerTo(This.getAddressSpace()));
@@ -2991,7 +2995,8 @@ MicrosoftCXXABI::GetVBaseOffsetFromVBPtr(CodeGenFunction &CGF,
       "vbtindex", /*isExact=*/true);
 
   // Load an i32 offset from the vb-table.
-  llvm::Value *VBaseOffs = Builder.CreateInBoundsGEP(VBTable, VBTableIndex);
+  llvm::Value *VBaseOffs =
+      Builder.CreateInBoundsGEP(CGF.Int32Ty, VBTable, VBTableIndex);
   VBaseOffs = Builder.CreateBitCast(VBaseOffs, CGM.Int32Ty->getPointerTo(0));
   return Builder.CreateAlignedLoad(VBaseOffs, CharUnits::fromQuantity(4),
                                    "vbase_offs");
@@ -3041,7 +3046,7 @@ llvm::Value *MicrosoftCXXABI::AdjustVirtualBase(
   llvm::Value *VBPtr = nullptr;
   llvm::Value *VBaseOffs =
     GetVBaseOffsetFromVBPtr(CGF, Base, VBPtrOffset, VBTableOffset, &VBPtr);
-  llvm::Value *AdjustedBase = Builder.CreateInBoundsGEP(VBPtr, VBaseOffs);
+  llvm::Value *AdjustedBase = Builder.CreateInBoundsGEP(CGF.Int8Ty, VBPtr, VBaseOffs);
 
   // Merge control flow with the case where we didn't have to adjust.
   if (VBaseAdjustBB) {
@@ -3093,7 +3098,7 @@ llvm::Value *MicrosoftCXXABI::EmitMemberDataPointerAddress(
   Addr = Builder.CreateBitCast(Addr, CGF.Int8Ty->getPointerTo(AS));
 
   // Apply the offset, which we assume is non-null.
-  Addr = Builder.CreateInBoundsGEP(Addr, FieldOffset, "memptr.offset");
+  Addr = Builder.CreateInBoundsGEP(CGF.Int8Ty, Addr, FieldOffset, "memptr.offset");
 
   // Cast the address to the appropriate pointer type, adopting the address
   // space of the base pointer.
@@ -3255,9 +3260,9 @@ llvm::Value *MicrosoftCXXABI::EmitNonNullMemberPointerConversion(
             Mapping->getAggregateElement(cast<llvm::Constant>(VBIndex));
       } else {
         llvm::Value *Idxs[] = {getZeroInt(), VBIndex};
-        VirtualBaseAdjustmentOffset =
-            Builder.CreateAlignedLoad(Builder.CreateInBoundsGEP(VDispMap, Idxs),
-                                      CharUnits::fromQuantity(4));
+        VirtualBaseAdjustmentOffset = Builder.CreateAlignedLoad(
+            Builder.CreateInBoundsGEP(CGM.Int8Ty, VDispMap, Idxs),
+            CharUnits::fromQuantity(4));
       }
 
       DstVBIndexEqZero =
@@ -3387,7 +3392,7 @@ CGCallee MicrosoftCXXABI::EmitLoadOfMemberFunctionPointer(
   if (NonVirtualBaseAdjustment) {
     // Apply the adjustment and cast back to the original struct type.
     llvm::Value *Ptr = Builder.CreateBitCast(ThisPtrForCall, CGF.Int8PtrTy);
-    Ptr = Builder.CreateInBoundsGEP(Ptr, NonVirtualBaseAdjustment);
+    Ptr = Builder.CreateInBoundsGEP(CGF.Int8Ty, Ptr, NonVirtualBaseAdjustment);
     ThisPtrForCall = Builder.CreateBitCast(Ptr, ThisPtrForCall->getType(),
                                            "this.adjusted");
   }

@@ -1721,8 +1721,8 @@ void CodeGenFunction::emitZeroOrPatternForAutoVarInit(QualType type,
     llvm::Value *BaseSizeInChars =
         llvm::ConstantInt::get(IntPtrTy, EltSize.getQuantity());
     Address Begin = Builder.CreateElementBitCast(Loc, Int8Ty, "vla.begin");
-    llvm::Value *End =
-        Builder.CreateInBoundsGEP(Begin.getPointer(), SizeVal, "vla.end");
+    llvm::Value *End = Builder.CreateInBoundsGEP(Int8Ty, Begin.getPointer(),
+                                                 SizeVal, "vla.end");
     llvm::BasicBlock *OriginBB = Builder.GetInsertBlock();
     EmitBlock(LoopBB);
     llvm::PHINode *Cur = Builder.CreatePHI(Begin.getType(), 2, "vla.cur");
@@ -2124,8 +2124,9 @@ void CodeGenFunction::emitDestroy(Address addr, QualType type,
   }
 
   llvm::Value *begin = addr.getPointer();
-  llvm::Value *end = Builder.CreateInBoundsGEP(begin, length);
-  emitArrayDestroy(begin, end, type, elementAlign, destroyer,
+  llvm::Value *end =
+      Builder.CreateInBoundsGEP(addr.getElementType(), begin, length);
+  emitArrayDestroy(begin, end, type, elementAlign, addr.getElementType(), destroyer,
                    checkZeroLength, useEHCleanupForArray);
 }
 
@@ -2143,6 +2144,7 @@ void CodeGenFunction::emitArrayDestroy(llvm::Value *begin,
                                        llvm::Value *end,
                                        QualType elementType,
                                        CharUnits elementAlign,
+                                       llvm::Type *elementMemType,
                                        Destroyer *destroyer,
                                        bool checkZeroLength,
                                        bool useEHCleanup) {
@@ -2168,8 +2170,8 @@ void CodeGenFunction::emitArrayDestroy(llvm::Value *begin,
 
   // Shift the address back by one element.
   llvm::Value *negativeOne = llvm::ConstantInt::get(SizeTy, -1, true);
-  llvm::Value *element = Builder.CreateInBoundsGEP(elementPast, negativeOne,
-                                                   "arraydestroy.element");
+  llvm::Value *element = Builder.CreateInBoundsGEP(
+      elementMemType, elementPast, negativeOne, "arraydestroy.element");
 
   if (useEHCleanup)
     pushRegularPartialArrayCleanup(begin, element, elementType, elementAlign,
@@ -2198,25 +2200,29 @@ static void emitPartialArrayDestroy(CodeGenFunction &CGF,
                                     CodeGenFunction::Destroyer *destroyer) {
   // If the element type is itself an array, drill down.
   unsigned arrayDepth = 0;
-  while (const ArrayType *arrayType = CGF.getContext().getAsArrayType(type)) {
+  QualType scalarType = type;
+  while (const ArrayType *arrayType =
+             CGF.getContext().getAsArrayType(scalarType)) {
     // VLAs don't require a GEP index to walk into.
     if (!isa<VariableArrayType>(arrayType))
       arrayDepth++;
-    type = arrayType->getElementType();
+    scalarType = arrayType->getElementType();
   }
 
   if (arrayDepth) {
     llvm::Value *zero = llvm::ConstantInt::get(CGF.SizeTy, 0);
-
     SmallVector<llvm::Value*,4> gepIndices(arrayDepth+1, zero);
-    begin = CGF.Builder.CreateInBoundsGEP(begin, gepIndices, "pad.arraybegin");
-    end = CGF.Builder.CreateInBoundsGEP(end, gepIndices, "pad.arrayend");
+    begin = CGF.Builder.CreateInBoundsGEP(CGF.ConvertTypeForMem(type), begin,
+                                          gepIndices, "pad.arraybegin");
+    end = CGF.Builder.CreateInBoundsGEP(CGF.ConvertTypeForMem(type), end,
+                                        gepIndices, "pad.arrayend");
   }
 
   // Destroy the array.  We don't ever need an EH cleanup because we
   // assume that we're in an EH cleanup ourselves, so a throwing
   // destructor causes an immediate terminate.
-  CGF.emitArrayDestroy(begin, end, type, elementAlign, destroyer,
+  CGF.emitArrayDestroy(begin, end, scalarType, elementAlign,
+                       CGF.ConvertTypeForMem(scalarType), destroyer,
                        /*checkZeroLength*/ true, /*useEHCleanup*/ false);
 }
 

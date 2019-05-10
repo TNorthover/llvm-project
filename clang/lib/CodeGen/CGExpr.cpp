@@ -825,9 +825,9 @@ void CodeGenFunction::EmitTypeCheck(TypeCheckKind TCK, SourceLocation Loc,
                                             llvm::ConstantInt::get(IntPtrTy,
                                                                    CacheSize-1));
       llvm::Value *Indices[] = { Builder.getInt32(0), Slot };
-      llvm::Value *CacheVal =
-        Builder.CreateAlignedLoad(Builder.CreateInBoundsGEP(Cache, Indices),
-                                  getPointerAlign());
+      llvm::Value *CacheVal = Builder.CreateAlignedLoad(
+          Builder.CreateInBoundsGEP(HashTable, Cache, Indices),
+          getPointerAlign());
 
       // If the hash isn't in the cache, call a runtime handler to perform the
       // hard work of checking whether the vptr is for an object of the right
@@ -3367,6 +3367,7 @@ static const Expr *isSimpleArrayDecayOperand(const Expr *E) {
 }
 
 static llvm::Value *emitArraySubscriptGEP(CodeGenFunction &CGF,
+                                          llvm::Type *ty,
                                           llvm::Value *ptr,
                                           ArrayRef<llvm::Value*> indices,
                                           bool inbounds,
@@ -3374,11 +3375,11 @@ static llvm::Value *emitArraySubscriptGEP(CodeGenFunction &CGF,
                                           SourceLocation loc,
                                     const llvm::Twine &name = "arrayidx") {
   if (inbounds) {
-    return CGF.EmitCheckedInBoundsGEP(ptr, indices, signedIndices,
+    return CGF.EmitCheckedInBoundsGEP(ty, ptr, indices, signedIndices,
                                       CodeGenFunction::NotSubtraction, loc,
                                       name);
   } else {
-    return CGF.Builder.CreateGEP(ptr, indices, name);
+    return CGF.Builder.CreateGEP(ty, ptr, indices, name);
   }
 }
 
@@ -3471,9 +3472,9 @@ static Address emitArraySubscriptGEP(CodeGenFunction &CGF, Address addr,
   auto LastIndex = dyn_cast<llvm::ConstantInt>(indices.back());
   if (!LastIndex ||
       (!CGF.IsInPreservedAIRegion && !IsPreserveAIArrayBase(CGF, Base))) {
-    eltPtr = emitArraySubscriptGEP(
-        CGF, addr.getPointer(), indices, inbounds, signedIndices,
-        loc, name);
+    eltPtr =
+        emitArraySubscriptGEP(CGF, addr.getElementType(), addr.getPointer(),
+                              indices, inbounds, signedIndices, loc, name);
   } else {
     // Remember the original array subscript for bpf target
     unsigned idx = LastIndex->getZExtValue();
@@ -3598,8 +3599,8 @@ LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E,
     CharUnits EltAlign =
       getArrayElementAlign(Addr.getAlignment(), Idx, InterfaceSize);
     llvm::Value *EltPtr =
-        emitArraySubscriptGEP(*this, Addr.getPointer(), ScaledIdx, false,
-                              SignedIndices, E->getExprLoc());
+        emitArraySubscriptGEP(*this, Addr.getElementType(), Addr.getPointer(),
+                              ScaledIdx, false, SignedIndices, E->getExprLoc());
     Addr = Address(EltPtr, EltAlign);
 
     // Cast back.

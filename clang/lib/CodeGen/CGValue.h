@@ -438,12 +438,10 @@ public:
 /// An aggregate value slot.
 class AggValueSlot {
   /// The address.
-  llvm::Value *Addr;
+  Address Addr = Address::invalid();
 
   // Qualifiers
   Qualifiers Quals;
-
-  unsigned Alignment;
 
   /// DestructedFlag - This is set to true if some external code is
   /// responsible for setting up a destructor for the slot.  Otherwise
@@ -523,11 +521,9 @@ public:
                        IsSanitizerChecked_t isChecked = IsNotSanitizerChecked) {
     AggValueSlot AV;
     if (addr.isValid()) {
-      AV.Addr = addr.getPointer();
-      AV.Alignment = addr.getAlignment().getQuantity();
+      AV.Addr = addr;
     } else {
-      AV.Addr = nullptr;
-      AV.Alignment = 0;
+      AV.Addr = Address::invalid();
     }
     AV.Quals = quals;
     AV.DestructedFlag = isDestructed;
@@ -577,19 +573,19 @@ public:
   }
 
   llvm::Value *getPointer() const {
-    return Addr;
+    return Addr.isValid() ? Addr.getPointer() : nullptr;
   }
 
   Address getAddress() const {
-    return Address(Addr, getAlignment());
+    return Addr;
   }
 
   bool isIgnored() const {
-    return Addr == nullptr;
+    return !Addr.isValid();
   }
 
   CharUnits getAlignment() const {
-    return CharUnits::fromQuantity(Alignment);
+    return Addr.getAlignment();
   }
 
   IsAliased_t isPotentiallyAliased() const {

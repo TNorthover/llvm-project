@@ -1837,7 +1837,7 @@ void CodeGenFunction::EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S){
 
   // Fetch the value at the current index from the buffer.
   llvm::Value *CurrentItemPtr =
-    Builder.CreateGEP(EnumStateItems, index, "currentitem.ptr");
+      Builder.CreateGEP(Int8PtrTy, EnumStateItems, index, "currentitem.ptr");
   llvm::Value *CurrentItem =
     Builder.CreateAlignedLoad(CurrentItemPtr, getPointerAlign());
 

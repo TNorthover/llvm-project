@@ -1032,9 +1032,9 @@ void CodeGenFunction::EmitNewArrayInitializer(
           cast<ConstantArrayType>(ILE->getType()->getAsArrayTypeUnsafe())
               ->getSize().getZExtValue();
       CurPtr =
-          Address(Builder.CreateInBoundsGEP(CurPtr.getPointer(),
-                                            Builder.getSize(InitListElements),
-                                            "string.init.end"),
+          Address(Builder.CreateInBoundsGEP(
+                      CurPtr.getElementType(), CurPtr.getPointer(),
+                      Builder.getSize(InitListElements), "string.init.end"),
                   CurPtr.getAlignment().alignmentAtOffset(InitListElements *
                                                           ElementSize));
 
@@ -1091,9 +1091,9 @@ void CodeGenFunction::EmitNewArrayInitializer(
       StoreAnyExprIntoOneUnit(*this, ILE->getInit(i),
                               ILE->getInit(i)->getType(), CurPtr,
                               AggValueSlot::DoesNotOverlap);
-      CurPtr = Address(Builder.CreateInBoundsGEP(CurPtr.getPointer(),
-                                                 Builder.getSize(1),
-                                                 "array.exp.next"),
+      CurPtr = Address(Builder.CreateInBoundsGEP(
+                           CurPtr.getElementType(), CurPtr.getPointer(),
+                           Builder.getSize(1), "array.exp.next"),
                        StartAlign.alignmentAtOffset((i + 1) * ElementSize));
     }
 
@@ -1209,8 +1209,9 @@ void CodeGenFunction::EmitNewArrayInitializer(
   llvm::BasicBlock *ContBB = createBasicBlock("new.loop.end");
 
   // Find the end of the array, hoisted out of the loop.
-  llvm::Value *EndPtr =
-    Builder.CreateInBoundsGEP(BeginPtr.getPointer(), NumElements, "array.end");
+  llvm::Value *EndPtr = Builder.CreateInBoundsGEP(BeginPtr.getElementType(),
+                                                  BeginPtr.getPointer(),
+                                                  NumElements, "array.end");
 
   // If the number of elements isn't constant, we have to now check if there is
   // anything left to initialize.
@@ -1995,13 +1996,14 @@ static void EmitArrayDelete(CodeGenFunction &CGF,
       deletedPtr.getAlignment().alignmentOfArrayElement(elementSize);
 
     llvm::Value *arrayBegin = deletedPtr.getPointer();
-    llvm::Value *arrayEnd =
-      CGF.Builder.CreateInBoundsGEP(arrayBegin, numElements, "delete.end");
+    llvm::Value *arrayEnd = CGF.Builder.CreateInBoundsGEP(
+        deletedPtr.getElementType(), arrayBegin, numElements, "delete.end");
 
     // Note that it is legal to allocate a zero-length array, and we
     // can never fold the check away because the length should always
     // come from a cookie.
     CGF.emitArrayDestroy(arrayBegin, arrayEnd, elementType, elementAlign,
+                         deletedPtr.getElementType(),
                          CGF.getDestroyer(dtorKind),
                          /*checkZeroLength*/ true,
                          CGF.needsEHCleanup(dtorKind));
@@ -2053,7 +2055,8 @@ void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
       GEP.push_back(Zero);
     }
 
-    Ptr = Address(Builder.CreateInBoundsGEP(Ptr.getPointer(), GEP, "del.first"),
+    Ptr = Address(Builder.CreateInBoundsGEP(Ptr.getElementType(),
+                                            Ptr.getPointer(), GEP, "del.first"),
                   Ptr.getAlignment());
   }
 

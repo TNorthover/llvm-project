@@ -2492,12 +2492,13 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
     if (const VariableArrayType *vla
           = CGF.getContext().getAsVariableArrayType(type)) {
       llvm::Value *numElts = CGF.getVLASize(vla).NumElts;
+      llvm::Type *eltType = CGF.ConvertTypeForMem(vla->getElementType());
       if (!isInc) numElts = Builder.CreateNSWNeg(numElts, "vla.negsize");
       if (CGF.getLangOpts().isSignedOverflowDefined())
-        value = Builder.CreateGEP(value, numElts, "vla.inc");
+        value = Builder.CreateGEP(eltType, value, numElts, "vla.inc");
       else
         value = CGF.EmitCheckedInBoundsGEP(
-            value, numElts, /*SignedIndices=*/false, isSubtraction,
+            eltType, value, numElts, /*SignedIndices=*/false, isSubtraction,
             E->getExprLoc(), "vla.inc");
 
     // Arithmetic on function pointers (!) is just +-1.
@@ -2506,22 +2507,23 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
 
       value = CGF.EmitCastToVoidPtr(value);
       if (CGF.getLangOpts().isSignedOverflowDefined())
-        value = Builder.CreateGEP(value, amt, "incdec.funcptr");
+        value = Builder.CreateGEP(CGF.Int8Ty, value, amt, "incdec.funcptr");
       else
-        value = CGF.EmitCheckedInBoundsGEP(value, amt, /*SignedIndices=*/false,
-                                           isSubtraction, E->getExprLoc(),
-                                           "incdec.funcptr");
+        value = CGF.EmitCheckedInBoundsGEP(
+            CGF.Int8Ty, value, amt, /*SignedIndices=*/false, isSubtraction,
+            E->getExprLoc(), "incdec.funcptr");
       value = Builder.CreateBitCast(value, input->getType());
 
     // For everything else, we can just do a simple increment.
     } else {
       llvm::Value *amt = Builder.getInt32(amount);
+      llvm::Type *eltTy = CGF.ConvertTypeForMem(type);
       if (CGF.getLangOpts().isSignedOverflowDefined())
-        value = Builder.CreateGEP(value, amt, "incdec.ptr");
+        value = Builder.CreateGEP(eltTy, value, amt, "incdec.ptr");
       else
-        value = CGF.EmitCheckedInBoundsGEP(value, amt, /*SignedIndices=*/false,
-                                           isSubtraction, E->getExprLoc(),
-                                           "incdec.ptr");
+        value = CGF.EmitCheckedInBoundsGEP(
+            eltTy, value, amt, /*SignedIndices=*/false, isSubtraction,
+            E->getExprLoc(), "incdec.ptr");
     }
 
   // Vector increment/decrement.
@@ -2600,9 +2602,9 @@ ScalarExprEmitter::EmitScalarPrePostIncDec(const UnaryOperator *E, LValue LV,
       llvm::ConstantInt::get(CGF.SizeTy, size.getQuantity());
 
     if (CGF.getLangOpts().isSignedOverflowDefined())
-      value = Builder.CreateGEP(value, sizeValue, "incdec.objptr");
+      value = Builder.CreateGEP(CGF.Int8Ty, value, sizeValue, "incdec.objptr");
     else
-      value = CGF.EmitCheckedInBoundsGEP(value, sizeValue,
+      value = CGF.EmitCheckedInBoundsGEP(CGF.Int8Ty, value, sizeValue,
                                          /*SignedIndices=*/false, isSubtraction,
                                          E->getExprLoc(), "incdec.objptr");
     value = Builder.CreateBitCast(value, input->getType());
@@ -3291,7 +3293,7 @@ static Value *emitPointerArithmetic(CodeGenFunction &CGF,
     index = CGF.Builder.CreateMul(index, objectSize);
 
     Value *result = CGF.Builder.CreateBitCast(pointer, CGF.VoidPtrTy);
-    result = CGF.Builder.CreateGEP(result, index, "add.ptr");
+    result = CGF.Builder.CreateGEP(CGF.Int8Ty, result, index, "add.ptr");
     return CGF.Builder.CreateBitCast(result, pointer->getType());
   }
 
@@ -3300,6 +3302,7 @@ static Value *emitPointerArithmetic(CodeGenFunction &CGF,
         = CGF.getContext().getAsVariableArrayType(elementType)) {
     // The element count here is the total number of non-VLA elements.
     llvm::Value *numElements = CGF.getVLASize(vla).NumElts;
+    llvm::Type *elementTy = CGF.ConvertTypeForMem(vla->getElementType());
 
     // Effectively, the multiply by the VLA size is part of the GEP.
     // GEP indexes are signed, and scaling an index isn't permitted to
@@ -3307,12 +3310,12 @@ static Value *emitPointerArithmetic(CodeGenFunction &CGF,
     // multiply.  We suppress this if overflow is not undefined behavior.
     if (CGF.getLangOpts().isSignedOverflowDefined()) {
       index = CGF.Builder.CreateMul(index, numElements, "vla.index");
-      pointer = CGF.Builder.CreateGEP(pointer, index, "add.ptr");
+      pointer = CGF.Builder.CreateGEP(elementTy, pointer, index, "add.ptr");
     } else {
       index = CGF.Builder.CreateNSWMul(index, numElements, "vla.index");
-      pointer =
-          CGF.EmitCheckedInBoundsGEP(pointer, index, isSigned, isSubtraction,
-                                     op.E->getExprLoc(), "add.ptr");
+      pointer = CGF.EmitCheckedInBoundsGEP(elementTy, pointer, index, isSigned,
+                                           isSubtraction, op.E->getExprLoc(),
+                                           "add.ptr");
     }
     return pointer;
   }
@@ -3322,15 +3325,17 @@ static Value *emitPointerArithmetic(CodeGenFunction &CGF,
   // future proof.
   if (elementType->isVoidType() || elementType->isFunctionType()) {
     Value *result = CGF.EmitCastToVoidPtr(pointer);
-    result = CGF.Builder.CreateGEP(result, index, "add.ptr");
+    result = CGF.Builder.CreateGEP(CGF.Int8Ty, result, index, "add.ptr");
     return CGF.Builder.CreateBitCast(result, pointer->getType());
   }
 
+  llvm::Type *gepTy = CGF.ConvertTypeForMem(elementType);
   if (CGF.getLangOpts().isSignedOverflowDefined())
-    return CGF.Builder.CreateGEP(pointer, index, "add.ptr");
+    return CGF.Builder.CreateGEP(gepTy, pointer, index, "add.ptr");
 
-  return CGF.EmitCheckedInBoundsGEP(pointer, index, isSigned, isSubtraction,
-                                    op.E->getExprLoc(), "add.ptr");
+  return CGF.EmitCheckedInBoundsGEP(gepTy, pointer, index, isSigned,
+                                    isSubtraction, op.E->getExprLoc(),
+                                    "add.ptr");
 }
 
 // Construct an fmuladd intrinsic to represent a fused mul-add of MulOp and
@@ -4711,11 +4716,10 @@ static GEPOffsetAndOverflow EmitGEPOffsetInBytes(Value *BasePtr, Value *GEPVal,
   return {TotalOffset, OffsetOverflows};
 }
 
-Value *
-CodeGenFunction::EmitCheckedInBoundsGEP(Value *Ptr, ArrayRef<Value *> IdxList,
-                                        bool SignedIndices, bool IsSubtraction,
-                                        SourceLocation Loc, const Twine &Name) {
-  Value *GEPVal = Builder.CreateInBoundsGEP(Ptr, IdxList, Name);
+Value *CodeGenFunction::EmitCheckedInBoundsGEP(
+    llvm::Type *Ty, Value *Ptr, ArrayRef<Value *> IdxList, bool SignedIndices,
+    bool IsSubtraction, SourceLocation Loc, const Twine &Name) {
+  Value *GEPVal = Builder.CreateInBoundsGEP(Ty, Ptr, IdxList, Name);
 
   // If the pointer overflow sanitizer isn't enabled, do nothing.
   if (!SanOpts.has(SanitizerKind::PointerOverflow))
