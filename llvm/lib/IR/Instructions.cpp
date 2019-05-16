@@ -1317,7 +1317,8 @@ LoadInst::LoadInst(Type *Ty, Value *Ptr, const Twine &Name, bool isVolatile,
                    MaybeAlign Align, AtomicOrdering Order, SyncScope::ID SSID,
                    Instruction *InsertBef)
     : UnaryInstruction(Ty, Load, Ptr, InsertBef) {
-  assert(Ty == cast<PointerType>(Ptr->getType())->getElementType());
+  PointerType *PTy = cast<PointerType>(Ptr->getType());
+  assert(PTy->isOpaque() || Ty == PTy->getElementType());
   setVolatile(isVolatile);
   setAlignment(MaybeAlign(Align));
   setAtomic(Order, SSID);
@@ -1329,7 +1330,8 @@ LoadInst::LoadInst(Type *Ty, Value *Ptr, const Twine &Name, bool isVolatile,
                    MaybeAlign Align, AtomicOrdering Order, SyncScope::ID SSID,
                    BasicBlock *InsertAE)
     : UnaryInstruction(Ty, Load, Ptr, InsertAE) {
-  assert(Ty == cast<PointerType>(Ptr->getType())->getElementType());
+  PointerType *PTy = cast<PointerType>(Ptr->getType());
+  assert(PTy->isOpaque() || Ty == PTy->getElementType());
   setVolatile(isVolatile);
   setAlignment(Align);
   setAtomic(Order, SSID);

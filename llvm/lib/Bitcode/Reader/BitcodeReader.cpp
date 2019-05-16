@@ -3676,13 +3676,20 @@ Error BitcodeReader::parseBitcodeInto(Module *M, bool ShouldLazyLoadMetadata,
 Error BitcodeReader::typeCheckLoadStoreInst(Type *ValType, Type *PtrType) {
   if (!isa<PointerType>(PtrType))
     return error("Load/Store operand is not a pointer type");
-  Type *ElemType = cast<PointerType>(PtrType)->getElementType();
+  Type *ElemType;
+  if (cast<PointerType>(PtrType)->isOpaque()) {
+    ElemType = ValType;
+  } else {
+    ElemType = cast<PointerType>(PtrType)->getElementType();
 
-  if (ValType && ValType != ElemType)
-    return error("Explicit load/store type does not match pointee "
-                 "type of pointer operand");
+    if (ValType && ValType != ElemType)
+      return error("Explicit load/store type does not match pointee "
+                   "type of pointer operand");
+  }
+
   if (!PointerType::isLoadableOrStorableType(ElemType))
     return error("Cannot load/store from pointer");
+
   return Error::success();
 }
 

@@ -6984,7 +6984,8 @@ int LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS) {
       Ordering == AtomicOrdering::AcquireRelease)
     return Error(Loc, "atomic load cannot use Release ordering");
 
-  if (Ty != cast<PointerType>(Val->getType())->getElementType())
+  PointerType *PTy = cast<PointerType>(Val->getType());
+  if (!PTy->isOpaque() && Ty != PTy->getElementType())
     return Error(ExplicitTypeLoc,
                  "explicit pointee type doesn't match operand's pointee type");
 
