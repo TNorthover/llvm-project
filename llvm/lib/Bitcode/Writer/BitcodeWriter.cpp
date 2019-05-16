@@ -891,10 +891,19 @@ void ModuleBitcodeWriter::writeTypeTable() {
       break;
     case Type::PointerTyID: {
       PointerType *PTy = cast<PointerType>(T);
+      unsigned AddressSpace = PTy->getAddressSpace();
+
+      if (PTy->isOpaque()) {
+        // OPAQUE_POINTER: [address space]
+        Code = bitc::TYPE_CODE_OPAQUE_POINTER;
+        TypeVals.push_back(AddressSpace);
+        // FIXME: abbreviate addrspace(0)
+        break;
+      }
+
       // POINTER: [pointee type, address space]
       Code = bitc::TYPE_CODE_POINTER;
       TypeVals.push_back(VE.getTypeID(PTy->getElementType()));
-      unsigned AddressSpace = PTy->getAddressSpace();
       TypeVals.push_back(AddressSpace);
       if (AddressSpace == 0) AbbrevToUse = PtrAbbrev;
       break;

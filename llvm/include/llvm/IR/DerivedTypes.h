@@ -578,6 +578,7 @@ ElementCount Type::getVectorElementCount() const {
 /// Class to represent pointers.
 class PointerType : public Type {
   explicit PointerType(Type *ElType, unsigned AddrSpace);
+  explicit PointerType(LLVMContext &C, unsigned AddrSpace);
 
   Type *PointeeTy;
 
@@ -589,13 +590,26 @@ public:
   /// address space.
   static PointerType *get(Type *ElementType, unsigned AddressSpace);
 
+  static PointerType *get(LLVMContext &C, unsigned AddressSpace);
+
   /// This constructs a pointer to an object of the specified type in the
   /// generic address space (address space zero).
   static PointerType *getUnqual(Type *ElementType) {
     return PointerType::get(ElementType, 0);
   }
 
-  Type *getElementType() const { return PointeeTy; }
+  static PointerType *getUnqual(LLVMContext &C) {
+    return PointerType::get(C, 0);
+  }
+
+  Type *getElementType() const {
+    assert(PointeeTy && "Attempt to get element type of opaque pointer");
+    return PointeeTy;
+  }
+
+  bool isOpaque() const {
+    return !PointeeTy;
+  }
 
   /// Return true if the specified type is valid as a element type.
   static bool isValidElementType(Type *ElemTy);

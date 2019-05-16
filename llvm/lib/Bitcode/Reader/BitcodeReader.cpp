@@ -1778,6 +1778,14 @@ Error BitcodeReader::parseTypeTableBody() {
       ResultTy = PointerType::get(ResultTy, AddressSpace);
       break;
     }
+    case bitc::TYPE_CODE_OPAQUE_POINTER: { // OPAQUE_POINTER: [address space] or
+                                           //                 []
+      unsigned AddressSpace = 0;
+      if (Record.size() == 1)
+        AddressSpace = Record[0];
+      ResultTy = PointerType::get(Context, AddressSpace);
+      break;
+    }
     case bitc::TYPE_CODE_FUNCTION_OLD: {
       // FIXME: attrid is dead, remove it in LLVM 4.0
       // FUNCTION: [vararg, attrid, retty, paramty x N]

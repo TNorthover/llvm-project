@@ -166,7 +166,9 @@ enum TypeCodes {
 
   TYPE_CODE_FUNCTION = 21, // FUNCTION: [vararg, retty, paramty x N]
 
-  TYPE_CODE_TOKEN = 22 // TOKEN
+  TYPE_CODE_TOKEN = 22, // TOKEN
+
+  TYPE_CODE_OPAQUE_POINTER = 23, // OPAQUE_POINTER [addrspace]
 };
 
 enum OperandBundleTagCode {

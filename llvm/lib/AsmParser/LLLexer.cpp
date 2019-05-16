@@ -447,17 +447,21 @@ lltok::Kind LLLexer::LexHash() {
 /// Lex a label, integer type, keyword, or hexadecimal integer constant.
 ///    Label           [-a-zA-Z$._0-9]+:
 ///    IntegerType     i[0-9]+
+///    PointerType     p[0-9]+
 ///    Keyword         sdiv, float, ...
 ///    HexIntConstant  [us]0x[0-9A-Fa-f]+
 lltok::Kind LLLexer::LexIdentifier() {
   const char *StartChar = CurPtr;
   const char *IntEnd = CurPtr[-1] == 'i' ? nullptr : StartChar;
+  const char *PtrEnd = CurPtr[-1] == 'p' ? nullptr : StartChar;
   const char *KeywordEnd = nullptr;
 
   for (; isLabelChar(*CurPtr); ++CurPtr) {
     // If we decide this is an integer, remember the end of the sequence.
     if (!IntEnd && !isdigit(static_cast<unsigned char>(*CurPtr)))
       IntEnd = CurPtr;
+    if (!PtrEnd && !isdigit(static_cast<unsigned char>(*CurPtr)))
+      PtrEnd = CurPtr;
     if (!KeywordEnd && !isalnum(static_cast<unsigned char>(*CurPtr)) &&
         *CurPtr != '_')
       KeywordEnd = CurPtr;
@@ -482,6 +486,14 @@ lltok::Kind LLLexer::LexIdentifier() {
       return lltok::Error;
     }
     TyVal = IntegerType::get(Context, NumBits);
+    return lltok::Type;
+  }
+
+  if (!PtrEnd) PtrEnd = CurPtr;
+  if (PtrEnd != StartChar) {
+    CurPtr = PtrEnd;
+    uint64_t AddrSpace = atoull(StartChar, CurPtr);
+    TyVal = PointerType::get(Context, AddrSpace);
     return lltok::Type;
   }
 
