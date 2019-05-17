@@ -3411,18 +3411,21 @@ void Verifier::visitLoadInst(LoadInst &LI) {
 void Verifier::visitStoreInst(StoreInst &SI) {
   PointerType *PTy = dyn_cast<PointerType>(SI.getOperand(1)->getType());
   Assert(PTy, "Store operand must be a pointer.", &SI);
-  Type *ElTy = PTy->getElementType();
-  Assert(ElTy == SI.getOperand(0)->getType(),
-         "Stored value type does not match pointer operand type!", &SI, ElTy);
   Assert(SI.getAlignment() <= Value::MaximumAlignment,
          "huge alignment values are unsupported", &SI);
-  Assert(ElTy->isSized(), "storing unsized types is not allowed", &SI);
+  if (!PTy->isOpaque()) {
+    Type *ElTy = PTy->getElementType();
+    Assert(ElTy == SI.getOperand(0)->getType(),
+           "Stored value type does not match pointer operand type!", &SI, ElTy);
+    Assert(ElTy->isSized(), "storing unsized types is not allowed", &SI);
+  }
   if (SI.isAtomic()) {
     Assert(SI.getOrdering() != AtomicOrdering::Acquire &&
                SI.getOrdering() != AtomicOrdering::AcquireRelease,
            "Store cannot have Acquire ordering", &SI);
     Assert(SI.getAlignment() != 0,
            "Atomic store must specify explicit alignment", &SI);
+    Type *ElTy = SI.getOperand(0)->getType();
     Assert(ElTy->isIntOrPtrTy() || ElTy->isFloatingPointTy(),
            "atomic store operand must have integer, pointer, or floating point "
            "type!",

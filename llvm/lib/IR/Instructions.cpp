@@ -1352,11 +1352,11 @@ void LoadInst::setAlignment(MaybeAlign Align) {
 //===----------------------------------------------------------------------===//
 
 void StoreInst::AssertOK() {
+  PointerType *PTy = cast<PointerType>(getOperand(1)->getType());
   assert(getOperand(0) && getOperand(1) && "Both operands must be non-null!");
   assert(getOperand(1)->getType()->isPointerTy() &&
          "Ptr must have pointer type!");
-  assert(getOperand(0)->getType() ==
-                 cast<PointerType>(getOperand(1)->getType())->getElementType()
+  assert((PTy->isOpaque() || getOperand(0)->getType() == PTy->getElementType())
          && "Ptr must be a pointer to Val type!");
   assert(!(isAtomic() && getAlignment() == 0) &&
          "Alignment required for atomic store");
