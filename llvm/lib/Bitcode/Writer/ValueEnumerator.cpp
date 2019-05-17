@@ -30,6 +30,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/UseListOrder.h"
@@ -401,6 +402,10 @@ ValueEnumerator::ValueEnumerator(const Module &M,
     for (const BasicBlock &BB : F)
       for (const Instruction &I : BB) {
         for (const Use &Op : I.operands()) {
+          // Embedded GEPs have types that need registering. FIXME: Is this right????????????????????
+          if (isa<Constant>(Op))
+            EnumerateValue(Op);
+
           auto *MD = dyn_cast<MetadataAsValue>(&Op);
           if (!MD) {
             EnumerateOperandType(Op);
@@ -826,6 +831,8 @@ void ValueEnumerator::EnumerateValue(const Value *V) {
   EnumerateType(V->getType());
 
   if (const Constant *C = dyn_cast<Constant>(V)) {
+    if (auto GEP = dyn_cast<GEPOperator>(C))
+      EnumerateType(GEP->getSourceElementType());
     if (isa<GlobalValue>(C)) {
       // Initializers for globals are handled explicitly elsewhere.
     } else if (C->getNumOperands()) {
@@ -967,7 +974,7 @@ void ValueEnumerator::incorporateFunction(const Function &F) {
       for (const Use &OI : I.operands()) {
         if ((isa<Constant>(OI) && !isa<GlobalValue>(OI)) || isa<InlineAsm>(OI))
           EnumerateValue(OI);
-      }
+        }
     BasicBlocks.push_back(&BB);
     ValueMap[&BB] = BasicBlocks.size();
   }

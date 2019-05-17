@@ -2074,12 +2074,14 @@ Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
   if (!Ty)
     Ty = cast<PointerType>(C->getType()->getScalarType())->getElementType();
   else
-    assert(Ty ==
-           cast<PointerType>(C->getType()->getScalarType())->getElementType());
+    assert(
+        cast<PointerType>(C->getType()->getScalarType())->isOpaque() ||
+        Ty ==
+            cast<PointerType>(C->getType()->getScalarType())->getElementType());
 
   if (Constant *FC =
           ConstantFoldGetElementPtr(Ty, C, InBounds, InRangeIndex, Idxs))
-    return FC;          // Fold a few common cases.
+    return FC; // Fold a few common cases.
 
   // Get the result type of the getelementptr!
   Type *DestTy = GetElementPtrInst::getIndexedType(Ty, Idxs);
@@ -2090,9 +2092,10 @@ Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
   unsigned NumVecElts = 0;
   if (C->getType()->isVectorTy())
     NumVecElts = C->getType()->getVectorNumElements();
-  else for (auto Idx : Idxs)
-    if (Idx->getType()->isVectorTy())
-      NumVecElts = Idx->getType()->getVectorNumElements();
+  else
+    for (auto Idx : Idxs)
+      if (Idx->getType()->isVectorTy())
+        NumVecElts = Idx->getType()->getVectorNumElements();
 
   if (NumVecElts)
     ReqTy = VectorType::get(ReqTy, NumVecElts);
@@ -2101,7 +2104,7 @@ Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
     return nullptr;
 
   // Look up the constant in the table first to ensure uniqueness
-  std::vector<Constant*> ArgVec;
+  std::vector<Constant *> ArgVec;
   ArgVec.reserve(1 + Idxs.size());
   ArgVec.push_back(C);
   for (unsigned i = 0, e = Idxs.size(); i != e; ++i) {

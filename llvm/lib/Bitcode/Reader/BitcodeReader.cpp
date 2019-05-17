@@ -2617,11 +2617,11 @@ Error BitcodeReader::parseConstants() {
       if (Elts.size() < 1)
         return error("Invalid gep with no operands");
 
-      Type *ImplicitPointeeType =
-          getPointerElementFlatType(Elt0FullTy->getScalarType());
+      PointerType *PTy = cast<PointerType>(Elt0FullTy->getScalarType());
       if (!PointeeType)
-        PointeeType = ImplicitPointeeType;
-      else if (PointeeType != ImplicitPointeeType)
+        PointeeType = getPointerElementFlatType(PTy);
+      else if (!PTy->isOpaque() &&
+               PointeeType != getPointerElementFlatType(PTy))
         return error("Explicit gep operator type does not match pointee type "
                      "of pointer operand");
 
