@@ -7080,10 +7080,11 @@ int LLParser::ParseCmpXchg(Instruction *&Inst, PerFunctionState &PFS) {
         "cmpxchg failure ordering cannot include release semantics");
   if (!Ptr->getType()->isPointerTy())
     return Error(PtrLoc, "cmpxchg operand must be a pointer");
-  if (cast<PointerType>(Ptr->getType())->getElementType() != Cmp->getType())
+  PointerType *PTy = cast<PointerType>(Ptr->getType());
+  if (!PTy->isOpaque() && PTy->getElementType() != Cmp->getType())
     return Error(CmpLoc, "compare value and pointer type do not match");
-  if (cast<PointerType>(Ptr->getType())->getElementType() != New->getType())
-    return Error(NewLoc, "new value and pointer type do not match");
+  if (Cmp->getType() != New->getType())
+    return Error(NewLoc, "compare value and new value type do not match");
   if (!New->getType()->isFirstClassType())
     return Error(NewLoc, "cmpxchg operand must be a first class value");
   AtomicCmpXchgInst *CXI = new AtomicCmpXchgInst(

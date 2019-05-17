@@ -1441,12 +1441,11 @@ void AtomicCmpXchgInst::Init(Value *Ptr, Value *Cmp, Value *NewVal,
          "All operands must be non-null!");
   assert(getOperand(0)->getType()->isPointerTy() &&
          "Ptr must have pointer type!");
-  assert(getOperand(1)->getType() ==
-                 cast<PointerType>(getOperand(0)->getType())->getElementType()
+  PointerType *PTy = cast<PointerType>(getOperand(0)->getType());
+  assert((PTy->isOpaque() || getOperand(1)->getType() == PTy->getElementType())
          && "Ptr must be a pointer to Cmp type!");
-  assert(getOperand(2)->getType() ==
-                 cast<PointerType>(getOperand(0)->getType())->getElementType()
-         && "Ptr must be a pointer to NewVal type!");
+  assert(getOperand(2)->getType() == getOperand(1)->getType() &&
+         "Cmp must be same type as NewVal!");
   assert(SuccessOrdering != AtomicOrdering::NotAtomic &&
          "AtomicCmpXchg instructions must be atomic!");
   assert(FailureOrdering != AtomicOrdering::NotAtomic &&
