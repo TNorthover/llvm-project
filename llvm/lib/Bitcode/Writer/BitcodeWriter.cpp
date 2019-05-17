@@ -2991,6 +2991,8 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     Vals.push_back(getEncodedOrdering(cast<AtomicRMWInst>(I).getOrdering()));
     Vals.push_back(
         getEncodedSyncScopeID(cast<AtomicRMWInst>(I).getSyncScopeID()));
+    if (cast<PointerType>(I.getOperand(0)->getType())->isOpaque())
+      Vals.push_back(VE.getTypeID(I.getOperand(1)->getType()));
     break;
   case Instruction::Fence:
     Code = bitc::FUNC_CODE_INST_FENCE;

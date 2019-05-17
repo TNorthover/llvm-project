@@ -4964,14 +4964,24 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
       break;
     }
     case bitc::FUNC_CODE_INST_ATOMICRMW: {
-      // ATOMICRMW:[ptrty, ptr, val, op, vol, ordering, ssid]
+      // ATOMICRMW:[ptrty, ptr, val, op, vol, ordering, ssid, ty?]
       unsigned OpNum = 0;
       Value *Ptr, *Val;
       if (getValueTypePair(Record, OpNum, NextValueNo, Ptr, &FullTy) ||
-          !isa<PointerType>(Ptr->getType()) ||
-          popValue(Record, OpNum, NextValueNo,
-                   getPointerElementFlatType(FullTy), Val) ||
-          OpNum + 4 != Record.size())
+          !isa<PointerType>(Ptr->getType()))
+        return error("Invalid record");
+      PointerType *PTy = cast<PointerType>(Ptr->getType());
+      Type *ValTy;
+      if (PTy->isOpaque()) {
+        if (Record.size() != OpNum + 6)
+          return error("Invalid record");
+        FullTy = ValTy = getTypeByID(Record[OpNum + 5]);
+      } else {
+        if (Record.size() != OpNum + 5)
+          return error("Invalid record");
+        FullTy = ValTy = getPointerElementFlatType(FullTy);
+      }
+      if (popValue(Record, OpNum, NextValueNo, ValTy, Val))
         return error("Invalid record");
       AtomicRMWInst::BinOp Operation = getDecodedRMWOperation(Record[OpNum]);
       if (Operation < AtomicRMWInst::FIRST_BINOP ||
@@ -4983,7 +4993,6 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
         return error("Invalid record");
       SyncScope::ID SSID = getDecodedSyncScopeID(Record[OpNum + 3]);
       I = new AtomicRMWInst(Operation, Ptr, Val, Ordering, SSID);
-      FullTy = getPointerElementFlatType(FullTy);
       cast<AtomicRMWInst>(I)->setVolatile(Record[OpNum+1]);
       InstructionList.push_back(I);
       break;
