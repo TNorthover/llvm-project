@@ -924,9 +924,9 @@ public:
       PointeeType =
           cast<PointerType>(Ptr->getType()->getScalarType())->getElementType();
     else
-      assert(
-          PointeeType ==
-          cast<PointerType>(Ptr->getType()->getScalarType())->getElementType());
+      assert(cast<PointerType>(Ptr->getType()->getScalarType())->isOpaque() ||
+             PointeeType == cast<PointerType>(Ptr->getType()->getScalarType())
+                                ->getElementType());
     return new (Values) GetElementPtrInst(PointeeType, Ptr, IdxList, Values,
                                           NameStr, InsertBefore);
   }

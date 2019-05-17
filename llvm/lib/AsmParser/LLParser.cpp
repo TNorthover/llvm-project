@@ -7219,7 +7219,7 @@ int LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
   if (!BasePointerType)
     return Error(Loc, "base of getelementptr must be a pointer");
 
-  if (Ty != BasePointerType->getElementType())
+  if (!BasePointerType->isOpaque() && Ty != BasePointerType->getElementType())
     return Error(ExplicitTypeLoc,
                  "explicit pointee type doesn't match operand's pointee type");
 

@@ -3986,10 +3986,11 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
       if (getValueTypePair(Record, OpNum, NextValueNo, BasePtr, &FullBaseTy))
         return error("Invalid record");
 
+      auto BasePtrTy = cast<PointerType>(FullBaseTy->getScalarType());
       if (!Ty) {
         std::tie(FullTy, Ty) =
             getPointerElementTypes(FullBaseTy->getScalarType());
-      } else if (Ty != getPointerElementFlatType(FullBaseTy->getScalarType()))
+      } else if (!BasePtrTy->isOpaque() && Ty != BasePtrTy->getElementType())
         return error(
             "Explicit gep type does not match pointee type of pointer operand");
 

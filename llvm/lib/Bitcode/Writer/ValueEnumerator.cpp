@@ -428,6 +428,11 @@ ValueEnumerator::ValueEnumerator(const Module &M,
         if (DILocation *L = I.getDebugLoc())
           for (const Metadata *Op : L->operands())
             EnumerateMetadata(&F, Op);
+
+        // GEPs have an extra type specifying the underlying memory structure
+        // that may appear nowhere else.
+        if (const auto *GEP = dyn_cast<GetElementPtrInst>(&I))
+          EnumerateType(GEP->getSourceElementType());
       }
   }
 
