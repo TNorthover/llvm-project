@@ -193,8 +193,7 @@ static void predictValueUseListOrderImpl(const Value *V, const Function *F,
     // We may have lost some users.
     return;
 
-  bool GetsReversed =
-      !isa<GlobalVariable>(V) && !isa<Function>(V) && !isa<BasicBlock>(V);
+  bool GetsReversed = !isa<BasicBlock>(V);
   if (auto *BA = dyn_cast<BlockAddress>(V))
     ID = OM.lookup(BA->getBasicBlock()).first;
   llvm::sort(List, [&](const Entry &L, const Entry &R) {

@@ -932,15 +932,17 @@ bool LLParser::parseIndirectSymbol(const std::string &Name, LocTy NameLoc,
         ExplicitTypeLoc,
         "explicit pointee type should be a function type");
 
-  GlobalValue *GVal = nullptr;
+  if (!Name.empty() && M->getNamedValue(Name))
+    return Error(NameLoc, "redefinition of global '@" + Name + "'");
 
   // See if the alias was forward referenced, if so, prepare to replace the
   // forward reference.
+  GlobalValue *GVal = nullptr;
   if (!Name.empty()) {
-    GVal = M->getNamedValue(Name);
-    if (GVal) {
-      if (!ForwardRefVals.erase(Name))
-        return Error(NameLoc, "redefinition of global '@" + Name + "'");
+    auto It = ForwardRefVals.find(Name);
+    if (It != ForwardRefVals.end()) {
+      GVal = It->second.first;
+      ForwardRefVals.erase(Name);
     }
   } else {
     auto I = ForwardRefValIDs.find(NumberedVals.size());
@@ -1059,38 +1061,28 @@ bool LLParser::ParseGlobal(const std::string &Name, LocTy NameLoc,
   if (Ty->isFunctionTy() || !PointerType::isValidElementType(Ty))
     return Error(TyLoc, "invalid type for global variable");
 
-  GlobalValue *GVal = nullptr;
+  if (!Name.empty() && M->getNamedValue(Name))
+    return Error(NameLoc, "redefinition of global '@" + Name + "'");
 
+  GlobalValue *FwdGVal = nullptr;
   // See if the global was forward referenced, if so, use the global.
   if (!Name.empty()) {
-    GVal = M->getNamedValue(Name);
-    if (GVal) {
-      if (!ForwardRefVals.erase(Name))
-        return Error(NameLoc, "redefinition of global '@" + Name + "'");
+    auto I = ForwardRefVals.find(Name);
+    if (I != ForwardRefVals.end()) {
+      FwdGVal = I->second.first;
+      ForwardRefVals.erase(I);
     }
   } else {
     auto I = ForwardRefValIDs.find(NumberedVals.size());
     if (I != ForwardRefValIDs.end()) {
-      GVal = I->second.first;
+      FwdGVal = I->second.first;
       ForwardRefValIDs.erase(I);
     }
   }
 
-  GlobalVariable *GV;
-  if (!GVal) {
-    GV = new GlobalVariable(*M, Ty, false, GlobalValue::ExternalLinkage, nullptr,
-                            Name, nullptr, GlobalVariable::NotThreadLocal,
-                            AddrSpace);
-  } else {
-    if (GVal->getValueType() != Ty)
-      return Error(TyLoc,
-            "forward reference and definition of global have different types");
-
-    GV = cast<GlobalVariable>(GVal);
-
-    // Move the forward-reference to the correct spot in the module.
-    M->getGlobalList().splice(M->global_end(), M->getGlobalList(), GV);
-  }
+  GlobalVariable *GV = new GlobalVariable(
+      *M, Ty, false, GlobalValue::ExternalLinkage, nullptr, Name, nullptr,
+      GlobalVariable::NotThreadLocal, AddrSpace);
 
   if (Name.empty())
     NumberedVals.push_back(GV);
@@ -1106,6 +1098,15 @@ bool LLParser::ParseGlobal(const std::string &Name, LocTy NameLoc,
   GV->setExternallyInitialized(IsExternallyInitialized);
   GV->setThreadLocalMode(TLM);
   GV->setUnnamedAddr(UnnamedAddr);
+
+  if (FwdGVal) {
+    if (!FwdGVal->getType()->isOpaque() && FwdGVal->getValueType() != Ty)
+      return Error(TyLoc,
+            "forward reference and definition of global have different types");
+
+    FwdGVal->replaceAllUsesWith(GV);
+    FwdGVal->eraseFromParent();
+  }
 
   // Parse attributes on the global.
   while (Lex.getKind() == lltok::comma) {
@@ -1361,16 +1362,16 @@ bool LLParser::ParseFnAttributeValuePairs(AttrBuilder &B,
 // GlobalValue Reference/Resolution Routines.
 //===----------------------------------------------------------------------===//
 
-static inline GlobalValue *createGlobalFwdRef(Module *M, PointerType *PTy,
-                                              const std::string &Name) {
-  if (auto *FT = dyn_cast<FunctionType>(PTy->getElementType()))
+static inline GlobalValue *createGlobalFwdRef(Module *M, PointerType *PTy) {
+  Type *ElTy = PTy->isOpaque() ? Type::getInt8Ty(M->getContext())
+                               : PTy->getElementType();
+  if (auto *FT = dyn_cast<FunctionType>(ElTy))
     return Function::Create(FT, GlobalValue::ExternalWeakLinkage,
-                            PTy->getAddressSpace(), Name, M);
+                            PTy->getAddressSpace(), "", M);
   else
-    return new GlobalVariable(*M, PTy->getElementType(), false,
-                              GlobalValue::ExternalWeakLinkage, nullptr, Name,
-                              nullptr, GlobalVariable::NotThreadLocal,
-                              PTy->getAddressSpace());
+    return new GlobalVariable(
+        *M, ElTy, false, GlobalValue::ExternalWeakLinkage, nullptr, "",
+        nullptr, GlobalVariable::NotThreadLocal, PTy->getAddressSpace());
 }
 
 Value *LLParser::checkValidVariableType(LocTy Loc, const Twine &Name, Type *Ty,
@@ -1424,7 +1425,7 @@ GlobalValue *LLParser::GetGlobalVal(const std::string &Name, Type *Ty,
         checkValidVariableType(Loc, "@" + Name, Ty, Val, IsCall));
 
   // Otherwise, create a new forward reference for this value and remember it.
-  GlobalValue *FwdVal = createGlobalFwdRef(M, PTy, Name);
+  GlobalValue *FwdVal = createGlobalFwdRef(M, PTy);
   ForwardRefVals[Name] = std::make_pair(FwdVal, Loc);
   return FwdVal;
 }
@@ -1453,7 +1454,7 @@ GlobalValue *LLParser::GetGlobalVal(unsigned ID, Type *Ty, LocTy Loc,
         checkValidVariableType(Loc, "@" + Twine(ID), Ty, Val, IsCall));
 
   // Otherwise, create a new forward reference for this value and remember it.
-  GlobalValue *FwdVal = createGlobalFwdRef(M, PTy, "");
+  GlobalValue *FwdVal = createGlobalFwdRef(M, PTy);
   ForwardRefValIDs[ID] = std::make_pair(FwdVal, Loc);
   return FwdVal;
 }
@@ -5442,17 +5443,19 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
     FunctionType::get(RetType, ParamTypeList, isVarArg);
   PointerType *PFT = PointerType::get(FT, AddrSpace);
 
+  GlobalValue *FwdFn = nullptr;
   Fn = nullptr;
   if (!FunctionName.empty()) {
     // If this was a definition of a forward reference, remove the definition
     // from the forward reference table and fill in the forward ref.
     auto FRVI = ForwardRefVals.find(FunctionName);
     if (FRVI != ForwardRefVals.end()) {
-      Fn = M->getFunction(FunctionName);
-      if (!Fn)
+      FwdFn = FRVI->second.first;
+      if (!FwdFn->getType()->isOpaque() &&
+          !FwdFn->getType()->getPointerElementType()->isFunctionTy())
         return Error(FRVI->second.second, "invalid forward reference to "
                      "function as global value!");
-      if (Fn->getType() != PFT)
+      if (!FwdFn->getType()->isOpaque() && FwdFn->getType() != PFT)
         return Error(FRVI->second.second, "invalid forward reference to "
                      "function '" + FunctionName + "' with wrong type: "
                      "expected '" + getTypeString(PFT) + "' but was '" +
@@ -5471,8 +5474,8 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
     // types agree.
     auto I = ForwardRefValIDs.find(NumberedVals.size());
     if (I != ForwardRefValIDs.end()) {
-      Fn = cast<Function>(I->second.first);
-      if (Fn->getType() != PFT)
+      FwdFn = I->second.first;
+      if (!FwdFn->getType()->isOpaque() && FwdFn->getType() != PFT)
         return Error(NameLoc, "type of definition and forward reference of '@" +
                      Twine(NumberedVals.size()) + "' disagree: "
                      "expected '" + getTypeString(PFT) + "' but was '" +
@@ -5481,11 +5484,8 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
     }
   }
 
-  if (!Fn)
-    Fn = Function::Create(FT, GlobalValue::ExternalLinkage, AddrSpace,
-                          FunctionName, M);
-  else // Move the forward-reference to the correct spot in the module.
-    M->getFunctionList().splice(M->end(), M->getFunctionList(), Fn);
+  Fn = Function::Create(FT, GlobalValue::ExternalLinkage, AddrSpace,
+                        FunctionName, M);
 
   assert(Fn->getAddressSpace() == AddrSpace && "Created function in wrong AS");
 
@@ -5508,6 +5508,11 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
   Fn->setPrefixData(Prefix);
   Fn->setPrologueData(Prologue);
   ForwardRefAttrGroups[Fn] = FwdRefAttrGrps;
+
+  if (FwdFn) {
+    FwdFn->replaceAllUsesWith(Fn);
+    FwdFn->eraseFromParent();
+  }
 
   // Add all of the arguments we parsed to the function.
   Function::arg_iterator ArgIt = Fn->arg_begin();
