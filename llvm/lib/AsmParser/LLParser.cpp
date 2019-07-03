@@ -1381,8 +1381,15 @@ Value *LLParser::checkValidVariableType(LocTy Loc, const Twine &Name, Type *Ty,
   // For calls we also accept variables in the program address space.
   Type *SuggestedTy = Ty;
   if (IsCall && isa<PointerType>(Ty)) {
-    Type *TyInProgAS = cast<PointerType>(Ty)->getElementType()->getPointerTo(
-        M->getDataLayout().getProgramAddressSpace());
+    PointerType *PTy = cast<PointerType>(Ty);
+    Type *TyInProgAS;
+    if (PTy->isOpaque())
+      TyInProgAS = PointerType::get(
+          PTy->getContext(), M->getDataLayout().getProgramAddressSpace());
+    else
+      TyInProgAS = PTy->getElementType()->getPointerTo(
+          M->getDataLayout().getProgramAddressSpace());
+
     SuggestedTy = TyInProgAS;
     if (Val->getType() == TyInProgAS)
       return Val;
