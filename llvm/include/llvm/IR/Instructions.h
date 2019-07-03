@@ -1126,8 +1126,9 @@ GetElementPtrInst::GetElementPtrInst(Type *PointeeType, Value *Ptr,
                   Values, InsertBefore),
       SourceElementType(PointeeType),
       ResultElementType(getIndexedType(PointeeType, IdxList)) {
-  assert(ResultElementType ==
-         cast<PointerType>(getType()->getScalarType())->getElementType());
+  assert(cast<PointerType>(getType()->getScalarType())->isOpaque() ||
+         ResultElementType ==
+             cast<PointerType>(getType()->getScalarType())->getElementType());
   init(Ptr, IdxList, NameStr);
 }
 
@@ -1140,7 +1141,8 @@ GetElementPtrInst::GetElementPtrInst(Type *PointeeType, Value *Ptr,
                   Values, InsertAtEnd),
       SourceElementType(PointeeType),
       ResultElementType(getIndexedType(PointeeType, IdxList)) {
-  assert(ResultElementType ==
+  assert(cast<PointerType>(getType()->getScalarType())->isOpaque() ||
+         ResultElementType ==
          cast<PointerType>(getType()->getScalarType())->getElementType());
   init(Ptr, IdxList, NameStr);
 }

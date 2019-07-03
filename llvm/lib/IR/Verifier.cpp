@@ -1662,13 +1662,13 @@ void Verifier::verifyParameterAttrs(AttributeSet Attrs, Type *Ty,
 
   if (PointerType *PTy = dyn_cast<PointerType>(Ty)) {
     SmallPtrSet<Type*, 4> Visited;
-    if (!PTy->getElementType()->isSized(&Visited)) {
+    if (!PTy->isOpaque() && !PTy->getElementType()->isSized(&Visited)) {
       Assert(!Attrs.hasAttribute(Attribute::ByVal) &&
                  !Attrs.hasAttribute(Attribute::InAlloca),
              "Attributes 'byval' and 'inalloca' do not support unsized types!",
              V);
     }
-    if (!isa<PointerType>(PTy->getElementType()))
+    if (!PTy->isOpaque() && !isa<PointerType>(PTy->getElementType()))
       Assert(!Attrs.hasAttribute(Attribute::SwiftError),
              "Attribute 'swifterror' only applies to parameters "
              "with pointer to pointer type!",
@@ -2828,10 +2828,10 @@ void Verifier::visitCallBase(CallBase &Call) {
          "Called function must be a pointer!", Call);
   PointerType *FPTy = cast<PointerType>(Call.getCalledValue()->getType());
 
-  Assert(FPTy->getElementType()->isFunctionTy(),
+  Assert(FPTy->isOpaque() || FPTy->getElementType()->isFunctionTy(),
          "Called function is not pointer to function type!", Call);
 
-  Assert(FPTy->getElementType() == Call.getFunctionType(),
+  Assert(FPTy->isOpaque() || FPTy->getElementType() == Call.getFunctionType(),
          "Called function is not the same type as the call!", Call);
 
   FunctionType *FTy = Call.getFunctionType();
@@ -3295,7 +3295,8 @@ void Verifier::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   Assert(ElTy, "Invalid indices for GEP pointer type!", &GEP);
 
   Assert(GEP.getType()->isPtrOrPtrVectorTy() &&
-             GEP.getResultElementType() == ElTy,
+             (cast<PointerType>(GEP.getType()->getScalarType())->isOpaque() ||
+              GEP.getResultElementType() == ElTy),
          "GEP is not of right type for indices!", &GEP, ElTy);
 
   if (GEP.getType()->isVectorTy()) {
