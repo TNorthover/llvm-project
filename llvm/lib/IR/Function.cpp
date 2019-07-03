@@ -1171,8 +1171,16 @@ static bool matchIntrinsicType(
     }
     case IITDescriptor::Pointer: {
       PointerType *PT = dyn_cast<PointerType>(Ty);
-      return !PT || PT->getAddressSpace() != D.Pointer_AddressSpace ||
-             matchIntrinsicType(PT->getElementType(), Infos, ArgTys,
+      if (!PT || PT->getAddressSpace() != D.Pointer_AddressSpace)
+        return true;
+      else if (PT->isOpaque()) {
+        Infos = Infos.slice(1);
+        return false;
+      }
+
+      // FIXME: remove this, and the embedded pointee type entirely once
+      // pointers are all opaque.
+      return matchIntrinsicType(PT->getElementType(), Infos, ArgTys,
                                 DeferredChecks, IsDeferredCheck);
     }
 
@@ -1317,8 +1325,9 @@ static bool matchIntrinsicType(
               dyn_cast<PointerType>(ThisArgVecTy->getVectorElementType());
       if (!ThisArgEltTy)
         return true;
-      return ThisArgEltTy->getElementType() !=
-             ReferenceType->getVectorElementType();
+      return ThisArgEltTy->isOpaque() ||
+             ThisArgEltTy->getElementType() !=
+                 ReferenceType->getVectorElementType();
     }
     case IITDescriptor::VecElementArgument: {
       if (D.getArgumentNumber() >= ArgTys.size())
