@@ -2369,6 +2369,18 @@ public:
                       OpBundles, Name, FPMathTag);
   }
 
+  CallInst *CreateCall(Function *Callee, ArrayRef<Value *> Args = None,
+                       const Twine &Name = "", MDNode *FPMathTag = nullptr) {
+    return CreateCall(Callee->getFunctionType(), Callee, Args, Name, FPMathTag);
+  }
+
+  CallInst *CreateCall(Function *Callee, ArrayRef<Value *> Args,
+                       ArrayRef<OperandBundleDef> OpBundles,
+                       const Twine &Name = "", MDNode *FPMathTag = nullptr) {
+    return CreateCall(Callee->getFunctionType(), Callee, Args, OpBundles, Name,
+                      FPMathTag);
+  }
+
   // Deprecated [opaque pointer types]
   CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Args = None,
                        const Twine &Name = "", MDNode *FPMathTag = nullptr) {
