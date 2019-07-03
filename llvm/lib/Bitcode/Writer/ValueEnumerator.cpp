@@ -331,6 +331,7 @@ ValueEnumerator::ValueEnumerator(const Module &M,
   // Enumerate the functions.
   for (const Function & F : M) {
     EnumerateValue(&F);
+    EnumerateType(F.getFunctionType());
     EnumerateAttributes(F.getAttributes());
   }
 

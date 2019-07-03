@@ -2342,6 +2342,7 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
       const std::string &ConstraintStr = IA->getConstraintString();
       Record.push_back(ConstraintStr.size());
       Record.append(ConstraintStr.begin(), ConstraintStr.end());
+      Record.push_back(VE.getTypeID(IA->getFunctionType()));
       Stream.EmitRecord(bitc::CST_CODE_INLINEASM, Record);
       Record.clear();
       continue;

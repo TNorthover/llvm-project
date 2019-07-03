@@ -2779,10 +2779,16 @@ Error BitcodeReader::parseConstants() {
       for (unsigned i = 0; i != ConstStrSize; ++i)
         ConstrStr += (char)Record[3+AsmStrSize+i];
       UpgradeInlineAsmString(&AsmStr);
-      V = InlineAsm::get(
-          cast<FunctionType>(getPointerElementFlatType(CurFullTy)), AsmStr,
-          ConstrStr, HasSideEffects, IsAlignStack,
-          InlineAsm::AsmDialect(AsmDialect));
+
+      Type *FTy;
+      if (Record.size() > 3 + AsmStrSize + ConstStrSize)
+        FTy = getTypeByID(Record[3 + AsmStrSize + ConstStrSize]);
+      else
+        FTy = getPointerElementFlatType(CurFullTy);
+
+      V = InlineAsm::get(cast<FunctionType>(FTy), AsmStr, ConstrStr,
+                         HasSideEffects, IsAlignStack,
+                         InlineAsm::AsmDialect(AsmDialect));
       break;
     }
     case bitc::CST_CODE_BLOCKADDRESS:{
