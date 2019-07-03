@@ -407,6 +407,11 @@ ValueEnumerator::ValueEnumerator(const Module &M,
           if (isa<Constant>(Op))
             EnumerateValue(Op);
 
+          if (auto *AI = dyn_cast<AllocaInst>(&I))
+            EnumerateType(AI->getAllocatedType());
+          else if (auto *CI = dyn_cast<CallBase>(&I))
+            EnumerateType(CI->getFunctionType());
+
           auto *MD = dyn_cast<MetadataAsValue>(&Op);
           if (!MD) {
             EnumerateOperandType(Op);
@@ -834,8 +839,9 @@ void ValueEnumerator::EnumerateValue(const Value *V) {
   if (const Constant *C = dyn_cast<Constant>(V)) {
     if (auto GEP = dyn_cast<GEPOperator>(C))
       EnumerateType(GEP->getSourceElementType());
-    if (isa<GlobalValue>(C)) {
+    if (auto *GV = dyn_cast<GlobalValue>(C)) {
       // Initializers for globals are handled explicitly elsewhere.
+      EnumerateType(GV->getValueType());
     } else if (C->getNumOperands()) {
       // If a constant has operands, enumerate them.  This makes sure that if a
       // constant has uses (for example an array of const ints), that they are
@@ -857,6 +863,7 @@ void ValueEnumerator::EnumerateValue(const Value *V) {
       return;
     }
   }
+
 
   // Add the value.
   Values.push_back(std::make_pair(V, 1U));
@@ -944,6 +951,12 @@ void ValueEnumerator::EnumerateAttributes(AttributeList PAL) {
     AttributeSet AS = PAL.getAttributes(i);
     if (!AS.hasAttributes())
       continue;
+
+    for (auto A : AS) {
+      if (A.isTypeAttribute() && A.getValueAsType())
+        EnumerateType(A.getValueAsType());
+    }
+
     IndexAndAttrSet Pair = {i, AS};
     unsigned &Entry = AttributeGroupMap[Pair];
     if (Entry == 0) {
