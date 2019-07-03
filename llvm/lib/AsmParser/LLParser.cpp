@@ -922,12 +922,12 @@ bool LLParser::parseIndirectSymbol(const std::string &Name, LocTy NameLoc,
     return Error(AliaseeLoc, "An alias or ifunc must have pointer type");
   unsigned AddrSpace = PTy->getAddressSpace();
 
-  if (IsAlias && Ty != PTy->getElementType())
+  if (IsAlias && !PTy->isOpaque() && Ty != PTy->getElementType())
     return Error(
         ExplicitTypeLoc,
         "explicit pointee type doesn't match operand's pointee type");
 
-  if (!IsAlias && !PTy->getElementType()->isFunctionTy())
+  if (!IsAlias && !PTy->isOpaque() && !PTy->getElementType()->isFunctionTy())
     return Error(
         ExplicitTypeLoc,
         "explicit pointee type should be a function type");
