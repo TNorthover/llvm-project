@@ -23,6 +23,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -31,6 +32,10 @@
 #include <utility>
 
 using namespace llvm;
+
+cl::opt<bool>
+    ForceOpaquePtr("force-opaque-ptr",
+                   cl::desc("Force all pointers in a module to be opaque"));
 
 //===----------------------------------------------------------------------===//
 //                         Type Class Implementation
@@ -643,10 +648,11 @@ PointerType *PointerType::get(Type *EltTy, unsigned AddressSpace) {
   assert(isValidElementType(EltTy) && "Invalid type for pointer element!");
 
   LLVMContextImpl *CImpl = EltTy->getContext().pImpl;
+  Type *CacheTy = ForceOpaquePtr ? nullptr : EltTy;
 
   // Since AddressSpace #0 is the common case, we special case it.
-  PointerType *&Entry = AddressSpace == 0 ? CImpl->PointerTypes[EltTy]
-     : CImpl->ASPointerTypes[std::make_pair(EltTy, AddressSpace)];
+  PointerType *&Entry = AddressSpace == 0 ? CImpl->PointerTypes[CacheTy]
+     : CImpl->ASPointerTypes[std::make_pair(CacheTy, AddressSpace)];
 
   if (!Entry)
     Entry = new (CImpl->Alloc) PointerType(EltTy, AddressSpace);
@@ -667,8 +673,11 @@ PointerType *PointerType::get(LLVMContext &C, unsigned AddressSpace) {
 
 PointerType::PointerType(Type *E, unsigned AddrSpace)
   : Type(E->getContext(), PointerTyID), PointeeTy(E) {
-  ContainedTys = &PointeeTy;
-  NumContainedTys = 1;
+  if (!ForceOpaquePtr) {
+    ContainedTys = &PointeeTy;
+    NumContainedTys = 1;
+  } else
+    PointeeTy = nullptr;
   setSubclassData(AddrSpace);
 }
 
