@@ -1351,7 +1351,8 @@ public:
   /// type.
   void setCalledFunction(FunctionType *FTy, Value *Fn) {
     this->FTy = FTy;
-    assert(FTy == cast<FunctionType>(
+    assert(cast<PointerType>(Fn->getType())->isOpaque() ||
+           FTy == cast<FunctionType>(
                       cast<PointerType>(Fn->getType())->getElementType()));
     // This function doesn't mutate the return type, only the function
     // type. Seems broken, but I'm just gonna stick an assert in for now.
