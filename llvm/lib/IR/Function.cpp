@@ -607,8 +607,9 @@ void Function::recalculateIntrinsicID() {
 static std::string getMangledTypeStr(Type* Ty) {
   std::string Result;
   if (PointerType* PTyp = dyn_cast<PointerType>(Ty)) {
-    Result += "p" + utostr(PTyp->getAddressSpace()) +
-      getMangledTypeStr(PTyp->getElementType());
+    Result += "p" + utostr(PTyp->getAddressSpace());
+    if (!PTyp->isOpaque())
+      Result += getMangledTypeStr(PTyp->getElementType());
   } else if (ArrayType* ATyp = dyn_cast<ArrayType>(Ty)) {
     Result += "a" + utostr(ATyp->getNumElements()) +
       getMangledTypeStr(ATyp->getElementType());
