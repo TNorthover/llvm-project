@@ -1650,7 +1650,8 @@ void Verifier::verifyParameterAttrs(AttributeSet Attrs, Type *Ty,
          V);
 
   if (Attrs.hasAttribute(Attribute::ByVal) && Attrs.getByValType()) {
-    Assert(Attrs.getByValType() == cast<PointerType>(Ty)->getElementType(),
+    Assert(cast<PointerType>(Ty)->isOpaque() ||
+               Attrs.getByValType() == cast<PointerType>(Ty)->getElementType(),
            "Attribute 'byval' type does not match parameter!", V);
   }
 
@@ -4605,6 +4606,9 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
     Assert(Alignment->getValue().isPowerOf2(),
            "masked_load: alignment must be a power of 2", Call);
 
+    if (cast<PointerType>(Ptr->getType())->isOpaque())
+      break;
+
     // DataTy is the overloaded type
     Type *DataTy = cast<PointerType>(Ptr->getType())->getElementType();
     Assert(DataTy == Call.getType(),
@@ -4625,6 +4629,9 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
            Call);
     Assert(Alignment->getValue().isPowerOf2(),
            "masked_store: alignment must be a power of 2", Call);
+
+    if (cast<PointerType>(Ptr->getType())->isOpaque())
+      break;
 
     // DataTy is the overloaded type
     Type *DataTy = cast<PointerType>(Ptr->getType())->getElementType();
