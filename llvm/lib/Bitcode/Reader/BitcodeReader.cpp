@@ -5056,7 +5056,7 @@ Error BitcodeReader::parseFunctionBody(Function *F) {
         if (!FullFTy)
           return error("Callee is not of pointer to function type");
         FTy = cast<FunctionType>(flattenPointerTypes(FullFTy));
-      } else if (getPointerElementFlatType(FullTy) != FTy)
+      } else if (!OpTy->isOpaque() && getPointerElementFlatType(FullTy) != FTy)
         return error("Explicit call type does not match pointee type of "
                      "callee operand");
       if (Record.size() < FTy->getNumParams() + OpNum)
