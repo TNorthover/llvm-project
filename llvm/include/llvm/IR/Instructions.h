@@ -940,9 +940,9 @@ public:
       PointeeType =
           cast<PointerType>(Ptr->getType()->getScalarType())->getElementType();
     else
-      assert(
-          PointeeType ==
-          cast<PointerType>(Ptr->getType()->getScalarType())->getElementType());
+      assert(cast<PointerType>(Ptr->getType()->getScalarType())->isOpaque() ||
+             PointeeType == cast<PointerType>(Ptr->getType()->getScalarType())
+                                ->getElementType());
     return new (Values) GetElementPtrInst(PointeeType, Ptr, IdxList, Values,
                                           NameStr, InsertAtEnd);
   }
@@ -992,8 +992,9 @@ public:
   void setResultElementType(Type *Ty) { ResultElementType = Ty; }
 
   Type *getResultElementType() const {
-    assert(ResultElementType ==
-           cast<PointerType>(getType()->getScalarType())->getElementType());
+    assert(cast<PointerType>(getType()->getScalarType())->isOpaque() ||
+           ResultElementType ==
+               cast<PointerType>(getType()->getScalarType())->getElementType());
     return ResultElementType;
   }
 
