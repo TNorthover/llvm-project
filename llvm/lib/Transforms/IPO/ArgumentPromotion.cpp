@@ -598,7 +598,6 @@ static bool isSafeToPromoteArgument(Argument *Arg, Type *ByValTy, AAResults &AAR
   GEPIndicesSet ToPromote;
 
   // If the pointer is always valid, any load with first index 0 is valid.
-
   if (ByValTy)
     SafeToUnconditionallyLoad.insert(IndicesVector(1, 0));
 
