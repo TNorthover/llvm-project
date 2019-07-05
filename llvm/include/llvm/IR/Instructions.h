@@ -5285,6 +5285,14 @@ inline Value *getPointerOperand(Value *V) {
   return const_cast<Value *>(getPointerOperand(static_cast<const Value *>(V)));
 }
 
+inline Type *getLoadStoreValueType(Value *V) {
+  if (auto *Load = dyn_cast<LoadInst>(V))
+    return Load->getType();
+  if (auto *Store = dyn_cast<StoreInst>(V))
+    return Store->getValueOperand()->getType();
+  return nullptr;
+}
+
 /// A helper function that returns the alignment of load or store instruction.
 inline MaybeAlign getLoadStoreAlignment(Value *I) {
   assert((isa<LoadInst>(I) || isa<StoreInst>(I)) &&

@@ -1195,6 +1195,8 @@ bool llvm::isConsecutiveAccess(Value *A, Value *B, const DataLayout &DL,
                                ScalarEvolution &SE, bool CheckType) {
   Value *PtrA = getLoadStorePointerOperand(A);
   Value *PtrB = getLoadStorePointerOperand(B);
+  Type *TyA = getLoadStoreValueType(A);
+  Type *TyB = getLoadStoreValueType(B);
   unsigned ASA = getAddressSpaceOperand(A);
   unsigned ASB = getAddressSpaceOperand(B);
 
@@ -1207,11 +1209,11 @@ bool llvm::isConsecutiveAccess(Value *A, Value *B, const DataLayout &DL,
     return false;
 
   // Make sure that A and B have the same type if required.
-  if (CheckType && PtrA->getType() != PtrB->getType())
+  if (CheckType && TyA != TyB)
     return false;
 
   unsigned IdxWidth = DL.getIndexSizeInBits(ASA);
-  Type *Ty = cast<PointerType>(PtrA->getType())->getElementType();
+  APInt Size(IdxWidth, DL.getTypeStoreSize(TyA));
 
   APInt OffsetA(IdxWidth, 0), OffsetB(IdxWidth, 0);
   PtrA = PtrA->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetA);
@@ -1228,8 +1230,6 @@ bool llvm::isConsecutiveAccess(Value *A, Value *B, const DataLayout &DL,
   IdxWidth = DL.getIndexSizeInBits(ASA);
   OffsetA = OffsetA.sextOrTrunc(IdxWidth);
   OffsetB = OffsetB.sextOrTrunc(IdxWidth);
-
-  APInt Size(IdxWidth, DL.getTypeStoreSize(Ty));
 
   //  OffsetDelta = OffsetB - OffsetA;
   const SCEV *OffsetSCEVA = SE.getConstant(OffsetA);
