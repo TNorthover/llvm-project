@@ -1535,58 +1535,6 @@ public:
                   NameStr, InsertAtEnd);
   }
 
-  // Deprecated [opaque pointer types]
-  static CallInst *Create(Value *Func, const Twine &NameStr = "",
-                          Instruction *InsertBefore = nullptr) {
-    return Create(cast<FunctionType>(
-                      cast<PointerType>(Func->getType())->getElementType()),
-                  Func, NameStr, InsertBefore);
-  }
-
-  // Deprecated [opaque pointer types]
-  static CallInst *Create(Value *Func, ArrayRef<Value *> Args,
-                          const Twine &NameStr,
-                          Instruction *InsertBefore = nullptr) {
-    return Create(cast<FunctionType>(
-                      cast<PointerType>(Func->getType())->getElementType()),
-                  Func, Args, NameStr, InsertBefore);
-  }
-
-  // Deprecated [opaque pointer types]
-  static CallInst *Create(Value *Func, ArrayRef<Value *> Args,
-                          ArrayRef<OperandBundleDef> Bundles = None,
-                          const Twine &NameStr = "",
-                          Instruction *InsertBefore = nullptr) {
-    return Create(cast<FunctionType>(
-                      cast<PointerType>(Func->getType())->getElementType()),
-                  Func, Args, Bundles, NameStr, InsertBefore);
-  }
-
-  // Deprecated [opaque pointer types]
-  static CallInst *Create(Value *Func, const Twine &NameStr,
-                          BasicBlock *InsertAtEnd) {
-    return Create(cast<FunctionType>(
-                      cast<PointerType>(Func->getType())->getElementType()),
-                  Func, NameStr, InsertAtEnd);
-  }
-
-  // Deprecated [opaque pointer types]
-  static CallInst *Create(Value *Func, ArrayRef<Value *> Args,
-                          const Twine &NameStr, BasicBlock *InsertAtEnd) {
-    return Create(cast<FunctionType>(
-                      cast<PointerType>(Func->getType())->getElementType()),
-                  Func, Args, NameStr, InsertAtEnd);
-  }
-
-  // Deprecated [opaque pointer types]
-  static CallInst *Create(Value *Func, ArrayRef<Value *> Args,
-                          ArrayRef<OperandBundleDef> Bundles,
-                          const Twine &NameStr, BasicBlock *InsertAtEnd) {
-    return Create(cast<FunctionType>(
-                      cast<PointerType>(Func->getType())->getElementType()),
-                  Func, Args, Bundles, NameStr, InsertAtEnd);
-  }
-
   /// Create a clone of \p CI with a different set of operand bundles and
   /// insert it before \p InsertPt.
   ///
