@@ -188,7 +188,8 @@ const SCEV *llvm::replaceSymbolicStrideSCEV(PredicatedScalarEvolution &PSE,
 /// There is no conflict when the intervals are disjoint:
 /// NoConflict = (P2.Start >= P1.End) || (P1.Start >= P2.End)
 void RuntimePointerChecking::insert(Loop *Lp, Value *Ptr, bool WritePtr,
-                                    unsigned DepSetId, unsigned ASId,
+                                    unsigned EltSize, unsigned DepSetId,
+                                    unsigned ASId,
                                     const ValueToValueMap &Strides,
                                     PredicatedScalarEvolution &PSE) {
   // Get the stride replaced scev.
@@ -222,8 +223,6 @@ void RuntimePointerChecking::insert(Loop *Lp, Value *Ptr, bool WritePtr,
       ScEnd = SE->getUMaxExpr(AR->getStart(), ScEnd);
     }
     // Add the size of the pointed element to ScEnd.
-    unsigned EltSize =
-      Ptr->getType()->getPointerElementType()->getScalarSizeInBits() / 8;
     const SCEV *EltSizeSCEV = SE->getConstant(ScEnd->getType(), EltSize);
     ScEnd = SE->getAddExpr(ScEnd, EltSizeSCEV);
   }
@@ -501,10 +500,11 @@ public:
   typedef SmallVector<MemAccessInfo, 8> MemAccessInfoList;
 
   AccessAnalysis(const DataLayout &Dl, Loop *TheLoop, AliasAnalysis *AA,
-                 LoopInfo *LI, MemoryDepChecker::DepCandidates &DA,
+                 LoopInfo *LI, MemoryDepChecker &DepChecker,
+                 MemoryDepChecker::DepCandidates &DA,
                  PredicatedScalarEvolution &PSE)
-      : DL(Dl), TheLoop(TheLoop), AST(*AA), LI(LI), DepCands(DA),
-        IsRTCheckAnalysisNeeded(false), PSE(PSE) {}
+      : DL(Dl), TheLoop(TheLoop), AST(*AA), LI(LI), DepChecker(DepChecker),
+        DepCands(DA), IsRTCheckAnalysisNeeded(false), PSE(PSE) {}
 
   /// Register a load  and whether it is only read from.
   void addLoad(MemoryLocation &Loc, bool IsReadOnly) {
@@ -567,6 +567,25 @@ public:
 
   MemAccessInfoList &getDependenciesToCheck() { return CheckDeps; }
 
+  unsigned getAccessSize(MemAccessInfo Access) const {
+    bool IsStore = Access.getInt();
+    SmallVector<Instruction *, 4> Insts = DepChecker.getInstructionsForAccess(
+        Access.getPointer(), Access.getInt());
+
+    unsigned Size = 0;
+    for (auto I : Insts) {
+      Type *Ty;
+      if (IsStore)
+        Ty = cast<StoreInst>(I)->getValueOperand()->getType();
+      else
+        Ty = cast<LoadInst>(I)->getType();
+
+      Size = std::max(Size, (unsigned)DL.getTypeStoreSize(Ty));
+    }
+
+    return Size;
+  }
+
 private:
   typedef SetVector<MemAccessInfo> PtrAccessSet;
 
@@ -593,6 +612,8 @@ private:
   AliasSetTracker AST;
 
   LoopInfo *LI;
+
+  MemoryDepChecker &DepChecker;
 
   /// Sets of potentially dependent accesses - members of one set share an
   /// underlying pointer. The set "CheckDeps" identfies which sets really need a
@@ -686,7 +707,8 @@ bool AccessAnalysis::createCheckForAccess(RuntimePointerChecking &RtCheck,
     DepId = RunningDepId++;
 
   bool IsWrite = Access.getInt();
-  RtCheck.insert(TheLoop, Ptr, IsWrite, DepId, ASId, StridesMap, PSE);
+  RtCheck.insert(TheLoop, Ptr, IsWrite, getAccessSize(Access), DepId, ASId,
+                 StridesMap, PSE);
   LLVM_DEBUG(dbgs() << "LAA: Found a runtime check ptr:" << *Ptr << '\n');
 
   return true;
@@ -1913,7 +1935,8 @@ void LoopAccessInfo::analyzeLoop(AliasAnalysis *AA, LoopInfo *LI,
 
   MemoryDepChecker::DepCandidates DependentAccesses;
   AccessAnalysis Accesses(TheLoop->getHeader()->getModule()->getDataLayout(),
-                          TheLoop, AA, LI, DependentAccesses, *PSE);
+                          TheLoop, AA, LI, *DepChecker.get(), DependentAccesses,
+                          *PSE);
 
   // Holds the analyzed pointers. We don't want to call GetUnderlyingObjects
   // multiple times on the same object. If the ptr is accessed twice, once
