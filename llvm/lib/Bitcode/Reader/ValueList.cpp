@@ -65,17 +65,16 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ConstantPlaceHolder, Value)
 
 } // end namespace llvm
 
-void BitcodeReaderValueList::assignValue(Value *V, unsigned Idx, Type *FullTy) {
+void BitcodeReaderValueList::assignValue(Value *V, unsigned Idx, unsigned TypeID) {
   if (Idx == size()) {
-    push_back(V, FullTy);
+    push_back(V, TypeID);
     return;
   }
 
   if (Idx >= size())
     resize(Idx + 1);
 
-  assert(FullTypes[Idx] == nullptr || FullTypes[Idx] == FullTy);
-  FullTypes[Idx] = FullTy;
+  TypeIDs[Idx] = TypeID;
 
   WeakTrackingVH &OldV = ValuePtrs[Idx];
   if (!OldV) {
@@ -96,7 +95,8 @@ void BitcodeReaderValueList::assignValue(Value *V, unsigned Idx, Type *FullTy) {
   }
 }
 
-Constant *BitcodeReaderValueList::getConstantFwdRef(unsigned Idx, Type *Ty) {
+Constant *BitcodeReaderValueList::getConstantFwdRef(unsigned Idx, Type *Ty,
+                                                    unsigned TypeID) {
   // Bail out for a clearly invalid value.
   if (Idx >= RefsUpperBound)
     return nullptr;
@@ -113,11 +113,12 @@ Constant *BitcodeReaderValueList::getConstantFwdRef(unsigned Idx, Type *Ty) {
   // Create and return a placeholder, which will later be RAUW'd.
   Constant *C = new ConstantPlaceHolder(Ty, Context);
   ValuePtrs[Idx] = C;
+  TypeIDs[Idx] = TypeID;
   return C;
 }
 
 Value *BitcodeReaderValueList::getValueFwdRef(unsigned Idx, Type *Ty,
-                                              Type **FullTy) {
+                                              unsigned TypeID) {
   // Bail out for a clearly invalid value.
   if (Idx >= RefsUpperBound)
     return nullptr;
@@ -129,8 +130,6 @@ Value *BitcodeReaderValueList::getValueFwdRef(unsigned Idx, Type *Ty,
     // If the types don't match, it's invalid.
     if (Ty && Ty != V->getType())
       return nullptr;
-    if (FullTy)
-      *FullTy = FullTypes[Idx];
     return V;
   }
 
@@ -141,6 +140,7 @@ Value *BitcodeReaderValueList::getValueFwdRef(unsigned Idx, Type *Ty,
   // Create and return a placeholder, which will later be RAUW'd.
   Value *V = new Argument(Ty);
   ValuePtrs[Idx] = V;
+  TypeIDs[Idx] = TypeID;
   return V;
 }
 

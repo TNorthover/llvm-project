@@ -1155,9 +1155,9 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
       break;
     }
 
-    MetadataList.assignValue(
-        LocalAsMetadata::get(ValueList.getValueFwdRef(Record[1], Ty)),
-        NextMetadataNo);
+    MetadataList.assignValue(LocalAsMetadata::get(ValueList.getValueFwdRef(
+                                 Record[1], Ty, Record[0])),
+                             NextMetadataNo);
     NextMetadataNo++;
     break;
   }
@@ -1175,8 +1175,8 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
       if (Ty->isMetadataTy())
         Elts.push_back(getMD(Record[i + 1]));
       else if (!Ty->isVoidTy()) {
-        auto *MD =
-            ValueAsMetadata::get(ValueList.getValueFwdRef(Record[i + 1], Ty));
+        auto *MD = ValueAsMetadata::get(
+            ValueList.getValueFwdRef(Record[i + 1], Ty, Record[i]));
         assert(isa<ConstantAsMetadata>(MD) &&
                "Expected non-function-local metadata");
         Elts.push_back(MD);
@@ -1195,9 +1195,9 @@ Error MetadataLoader::MetadataLoaderImpl::parseOneMetadata(
     if (Ty->isMetadataTy() || Ty->isVoidTy())
       return error("Invalid record");
 
-    MetadataList.assignValue(
-        ValueAsMetadata::get(ValueList.getValueFwdRef(Record[1], Ty)),
-        NextMetadataNo);
+    MetadataList.assignValue(ValueAsMetadata::get(ValueList.getValueFwdRef(
+                                 Record[1], Ty, Record[0])),
+                             NextMetadataNo);
     NextMetadataNo++;
     break;
   }

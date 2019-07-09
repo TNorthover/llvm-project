@@ -44,6 +44,30 @@ class Module;
     return std::move(*Val);
   }
 
+  class StructuredPointerType : public Type {
+    Type *PointeeTy;
+
+  public:
+    StructuredPointerType(const PointerType &) = delete;
+    StructuredPointerType &operator=(const PointerType &) = delete;
+
+    explicit StructuredPointerType(Type *E, unsigned AddrSpace)
+        : Type(E->getContext(), PointerTyID), PointeeTy(E) {
+      setSubclassData(AddrSpace);
+    }
+
+    Type *getElementType() const {
+      assert(PointeeTy && "Attempt to get element type of opaque pointer");
+      return PointeeTy;
+    }
+
+    /// Return the address space of the Pointer type.
+    inline unsigned getAddressSpace() const { return getSubclassData(); }
+
+    /// Implement support type inquiry through isa, cast, and dyn_cast.
+    static bool classof(const Type *T) { return T->getTypeID() == PointerTyID; }
+  };
+
   struct BitcodeFileContents;
 
   /// Basic information extracted from a bitcode module to be used for LTO.

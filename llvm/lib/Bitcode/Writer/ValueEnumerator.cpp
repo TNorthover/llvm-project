@@ -403,10 +403,6 @@ ValueEnumerator::ValueEnumerator(const Module &M,
     for (const BasicBlock &BB : F)
       for (const Instruction &I : BB) {
         for (const Use &Op : I.operands()) {
-          // Embedded GEPs have types that need registering. FIXME: Is this right????????????????????
-          if (isa<Constant>(Op))
-            EnumerateValue(Op);
-
           if (auto *AI = dyn_cast<AllocaInst>(&I))
             EnumerateType(AI->getAllocatedType());
           else if (auto *CI = dyn_cast<CallBase>(&I))
