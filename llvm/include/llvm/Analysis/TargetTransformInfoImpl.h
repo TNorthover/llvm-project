@@ -744,9 +744,10 @@ public:
                  ArrayRef<const Value *> Operands) {
     assert(PointeeType && Ptr && "can't get GEPCost of nullptr");
     // TODO: will remove this when pointers have an opaque type.
-    assert(Ptr->getType()->getScalarType()->getPointerElementType() ==
-               PointeeType &&
-           "explicit pointee type doesn't match operand's pointee type");
+    assert(cast<PointerType>(Ptr->getType()->getScalarType())->isOpaque() ||
+           Ptr->getType()->getScalarType()->getPointerElementType() ==
+                   PointeeType &&
+               "explicit pointee type doesn't match operand's pointee type");
     auto *BaseGV = dyn_cast<GlobalValue>(Ptr->stripPointerCasts());
     bool HasBaseReg = (BaseGV == nullptr);
 
