@@ -2446,7 +2446,7 @@ static bool isImageOrSamplerVal(const Value *arg, const Module *context) {
   Type *Ty = arg->getType();
   auto *PTy = dyn_cast<PointerType>(Ty);
 
-  if (!PTy)
+  if (!PTy || PTy->isOpaque()) // FIXME: NVPTX is screwed. There will be no pointer info to inspect. Function attributes??????
     return false;
 
   if (!context)

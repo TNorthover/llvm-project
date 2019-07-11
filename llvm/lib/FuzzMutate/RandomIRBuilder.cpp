@@ -140,6 +140,9 @@ Value *RandomIRBuilder::findPointer(BasicBlock &BB,
       return false;
 
     if (auto PtrTy = dyn_cast<PointerType>(Inst->getType())) {
+      if (PtrTy->isOpaque())
+        return Pred.matches(Srcs, nullptr); // FIXME: eventually!!!!!!!!!!!!!!!!!
+
       // We can never generate loads from non first class or non sized types
       if (!PtrTy->getElementType()->isSized() ||
           !PtrTy->getElementType()->isFirstClassType())
