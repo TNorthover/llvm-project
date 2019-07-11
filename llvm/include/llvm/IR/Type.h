@@ -379,7 +379,7 @@ public:
   }
 
   Type *getPointerElementType() const {
-    assert(getTypeID() == PointerTyID);
+    assert(getTypeID() == PointerTyID && NumContainedTys);
     return ContainedTys[0];
   }
 
