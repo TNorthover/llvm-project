@@ -4362,7 +4362,10 @@ Instruction *InstCombiner::visitCallBase(CallBase &Call) {
   if (!isa<Function>(Callee) && transformConstExprCastCall(Call))
     return nullptr;
 
+  FunctionType *FTy = nullptr;
   if (Function *CalleeF = dyn_cast<Function>(Callee)) {
+    FTy = CalleeF->getFunctionType();
+
     // Remove the convergent attr on calls when the callee is not convergent.
     if (Call.isConvergent() && !CalleeF->isConvergent() &&
         !CalleeF->isIntrinsic()) {
@@ -4419,8 +4422,10 @@ Instruction *InstCombiner::visitCallBase(CallBase &Call) {
     return transformCallThroughTrampoline(Call, *II);
 
   PointerType *PTy = cast<PointerType>(Callee->getType());
-  FunctionType *FTy = cast<FunctionType>(PTy->getElementType());
-  if (FTy->isVarArg()) {
+  if (!FTy && !PTy->isOpaque())
+    FTy = cast<FunctionType>(PTy->getElementType());
+
+  if (FTy && FTy->isVarArg()) {
     int ix = FTy->getNumParams();
     // See if we can optimize any arguments passed through the varargs area of
     // the call.
