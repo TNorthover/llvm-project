@@ -404,17 +404,37 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
                                     PointerType *PTy,
                                     Type *Ty,
                                     Value *V) {
-  Type *OriginalElTy = PTy->getElementType();
-  Type *ElTy = OriginalElTy;
+  Type *OriginalElTy = PTy->isOpaque() ? nullptr : PTy->getElementType();
   SmallVector<Value *, 4> GepIndices;
   SmallVector<const SCEV *, 8> Ops(op_begin, op_end);
   bool AnyNonZeroIndices = false;
+
+  // The pointer is opaque, but we presumably deduced its recurrence from
+  // somewhere. Look through users for an appropriate type to use.
+  if (!OriginalElTy) {
+    for (auto U : V->users()) {
+      if (auto LI = dyn_cast<LoadInst>(U)) {
+        OriginalElTy = LI->getType();
+        break;
+      } else if (auto SI = dyn_cast<StoreInst>(U)) {
+        OriginalElTy = SI->getOperand(0)->getType();
+        break;
+      } else if (auto GEP = dyn_cast<GetElementPtrInst>(U)) {
+        OriginalElTy = GEP->getSourceElementType();
+        break;
+      }
+    }
+  }
+  Type *ElTy = OriginalElTy;
 
   // Split AddRecs up into parts as either of the parts may be usable
   // without the other.
   SplitAddRecs(Ops, Ty, SE);
 
   Type *IntIdxTy = DL.getIndexType(PTy);
+
+  if (!OriginalElTy) // FIXME: minimally intrusive change. Make sure it's factored out before submitting!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    goto UseUglyGEP;
 
   // Descend down the pointer's type and attempt to convert the other
   // operands into GEP indices, at each level. The first index in a GEP
@@ -499,6 +519,8 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
     else
       break;
   }
+
+UseUglyGEP:
 
   // If none of the operands were convertible to proper GEP indices, cast
   // the base to i8* and do an ugly getelementptr with that. It's still
@@ -591,7 +613,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
   }
 
   return expand(SE.getAddExpr(Ops));
-}
+  }
 
 Value *SCEVExpander::expandAddToGEP(const SCEV *Op, PointerType *PTy, Type *Ty,
                                     Value *V) {
