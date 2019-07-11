@@ -35,7 +35,7 @@ using namespace llvm;
 
 cl::opt<bool>
     ForceOpaquePtr("force-opaque-ptr",
-                   cl::desc("Force all pointers in a module to be opaque"));
+                   cl::desc("Force all pointers in a module to be opaque"), cl::init(true));
 
 //===----------------------------------------------------------------------===//
 //                         Type Class Implementation
