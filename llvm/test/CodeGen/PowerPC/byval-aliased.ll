@@ -5,7 +5,7 @@ target triple = "powerpc-unknown-linux-gnu"
 %struct.sm = type { i8, i8 }
  
 ; Function Attrs: nounwind ssp
-define void @foo(%struct.sm* byval %s) #0 {
+define void @foo(%struct.sm* byval(%struct.sm) %s) #0 {
 entry:
   %a = getelementptr inbounds %struct.sm, %struct.sm* %s, i32 0, i32 0
   %0 = load i8, i8* %a, align 1
@@ -13,7 +13,7 @@ entry:
   %add = add nuw nsw i32 %conv2, 3
   %conv1 = trunc i32 %add to i8
   store i8 %conv1, i8* %a, align 1
-  call void @bar(%struct.sm* byval %s, %struct.sm* byval %s) #1
+  call void @bar(%struct.sm* byval(%struct.sm) %s, %struct.sm* byval(%struct.sm) %s) #1
   ret void
 }
 
@@ -23,7 +23,7 @@ entry:
 ; CHECK: bl bar
 ; CHECK: blr
  
-declare void @bar(%struct.sm* byval, %struct.sm* byval)
+declare void @bar(%struct.sm* byval(%struct.sm), %struct.sm* byval(%struct.sm))
  
 attributes #0 = { nounwind ssp }
 attributes #1 = { nounwind }

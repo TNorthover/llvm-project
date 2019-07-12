@@ -5,7 +5,7 @@ target triple = "i686-apple-darwin9"
 
 %0 = type { x86_fp80, x86_fp80 }
 
-define void @ccosl(%0* noalias sret %agg.result, %0* byval align 8 %z) nounwind {
+define void @ccosl(%0* noalias sret %agg.result, %0* byval(%0) align 8 %z) nounwind {
 entry:
   %iz = alloca %0
   %memtmp = alloca %0, align 16
@@ -18,13 +18,13 @@ entry:
   %tmp8 = load x86_fp80, x86_fp80* %tmp7, align 16
   store x86_fp80 %tmp3, x86_fp80* %real, align 16
   store x86_fp80 %tmp8, x86_fp80* %tmp4, align 16
-  call void @ccoshl(%0* noalias sret %memtmp, %0* byval align 8 %iz) nounwind
+  call void @ccoshl(%0* noalias sret %memtmp, %0* byval(%0) align 8 %iz) nounwind
   %memtmp14 = bitcast %0* %memtmp to i8*
   %agg.result15 = bitcast %0* %agg.result to i8*
   call void @llvm.memcpy.p0i8.p0i8.i32(i8* align 16 %agg.result15, i8* align 16 %memtmp14, i32 32, i1 false)
   ret void
 }
 
-declare void @ccoshl(%0* noalias nocapture sret, %0* byval) nounwind
+declare void @ccoshl(%0* noalias nocapture sret, %0* byval(%0)) nounwind
 
 declare void @llvm.memcpy.p0i8.p0i8.i32(i8* nocapture, i8* nocapture, i32, i1) nounwind

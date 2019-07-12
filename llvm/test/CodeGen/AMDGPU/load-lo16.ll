@@ -1176,7 +1176,7 @@ entry:
   ret void
 }
 
-define void @load_private_lo_v2i16_reglo_vreg(i16 addrspace(5)* byval %in, i32 %reg) #0 {
+define void @load_private_lo_v2i16_reglo_vreg(i16 addrspace(5)* byval(i16) %in, i32 %reg) #0 {
 ; GFX900-LABEL: load_private_lo_v2i16_reglo_vreg:
 ; GFX900:       ; %bb.0: ; %entry
 ; GFX900-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -1216,7 +1216,7 @@ entry:
   ret void
 }
 
-define void @load_private_lo_v2i16_reghi_vreg(i16 addrspace(5)* byval %in, i16 %reg) #0 {
+define void @load_private_lo_v2i16_reghi_vreg(i16 addrspace(5)* byval(i16) %in, i16 %reg) #0 {
 ; GFX900-LABEL: load_private_lo_v2i16_reghi_vreg:
 ; GFX900:       ; %bb.0: ; %entry
 ; GFX900-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -1258,7 +1258,7 @@ entry:
   ret void
 }
 
-define void @load_private_lo_v2f16_reglo_vreg(half addrspace(5)* byval %in, i32 %reg) #0 {
+define void @load_private_lo_v2f16_reglo_vreg(half addrspace(5)* byval(half) %in, i32 %reg) #0 {
 ; GFX900-LABEL: load_private_lo_v2f16_reglo_vreg:
 ; GFX900:       ; %bb.0: ; %entry
 ; GFX900-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -1417,7 +1417,7 @@ entry:
   ret void
 }
 
-define void @load_private_lo_v2i16_reglo_vreg_zexti8(i8 addrspace(5)* byval %in, i32 %reg) #0 {
+define void @load_private_lo_v2i16_reglo_vreg_zexti8(i8 addrspace(5)* byval(i8) %in, i32 %reg) #0 {
 ; GFX900-LABEL: load_private_lo_v2i16_reglo_vreg_zexti8:
 ; GFX900:       ; %bb.0: ; %entry
 ; GFX900-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -1459,7 +1459,7 @@ entry:
   ret void
 }
 
-define void @load_private_lo_v2i16_reglo_vreg_sexti8(i8 addrspace(5)* byval %in, i32 %reg) #0 {
+define void @load_private_lo_v2i16_reglo_vreg_sexti8(i8 addrspace(5)* byval(i8) %in, i32 %reg) #0 {
 ; GFX900-LABEL: load_private_lo_v2i16_reglo_vreg_sexti8:
 ; GFX900:       ; %bb.0: ; %entry
 ; GFX900-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)

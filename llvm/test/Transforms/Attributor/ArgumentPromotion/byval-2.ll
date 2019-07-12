@@ -3,9 +3,9 @@
 
 %struct.ss = type { i32, i64 }
 
-define internal void @f(%struct.ss* byval  %b, i32* byval %X) nounwind  {
+define internal void @f(%struct.ss* byval(%struct.ss)  %b, i32* byval(i32) %X) nounwind  {
 ; CHECK-LABEL: define {{[^@]+}}@f
-; CHECK-SAME: (%struct.ss* noalias nocapture nofree nonnull byval align 8 dereferenceable(12) [[B:%.*]], i32* nocapture nofree nonnull writeonly byval dereferenceable(4) [[X:%.*]])
+; CHECK-SAME: (%struct.ss* noalias nocapture nofree nonnull byval(%struct.ss) align 8 dereferenceable(12) [[B:%.*]], i32* nocapture nofree nonnull writeonly byval(i32) dereferenceable(4) [[X:%.*]])
 ; CHECK-NEXT:  entry:
 ; CHECK-NEXT:    [[TMP:%.*]] = getelementptr [[STRUCT_SS:%.*]], %struct.ss* [[B]], i32 0, i32 0
 ; CHECK-NEXT:    [[TMP1:%.*]] = load i32, i32* [[TMP]], align 8
@@ -33,7 +33,7 @@ define i32 @test(i32* %X) {
 ; CHECK-NEXT:    store i32 1, i32* [[TMP1]], align 8
 ; CHECK-NEXT:    [[TMP4:%.*]] = getelementptr [[STRUCT_SS]], %struct.ss* [[S]], i32 0, i32 1
 ; CHECK-NEXT:    store i64 2, i64* [[TMP4]], align 4
-; CHECK-NEXT:    call void @f(%struct.ss* noalias nocapture nofree nonnull byval align 8 dereferenceable(12) [[S]], i32* nocapture nofree readonly byval [[X]])
+; CHECK-NEXT:    call void @f(%struct.ss* noalias nocapture nofree nonnull byval(%struct.ss) align 8 dereferenceable(12) [[S]], i32* nocapture nofree readonly byval(i32) [[X]])
 ; CHECK-NEXT:    ret i32 0
 ;
 entry:
@@ -42,6 +42,6 @@ entry:
   store i32 1, i32* %tmp1, align 8
   %tmp4 = getelementptr %struct.ss, %struct.ss* %S, i32 0, i32 1
   store i64 2, i64* %tmp4, align 4
-  call void @f( %struct.ss* byval %S, i32* byval %X)
+  call void @f( %struct.ss* byval(%struct.ss) %S, i32* byval(i32) %X)
   ret i32 0
 }

@@ -14,7 +14,7 @@ declare void @oneparam(i32 %a)
 declare void @eightparams(i32 %a, i32 %b, i32 %c, i32 %d, i32 %e, i32 %f, i32 %g, i32 %h)
 declare void @eightparams16(i16 %a, i16 %b, i16 %c, i16 %d, i16 %e, i16 %f, i16 %g, i16 %h)
 declare void @eightparams64(i64 %a, i64 %b, i64 %c, i64 %d, i64 %e, i64 %f, i64 %g, i64 %h)
-declare void @struct(%struct.s* byval %a, i32 %b, i32 %c, i32 %d)
+declare void @struct(%struct.s* byval(%struct.s) %a, i32 %b, i32 %c, i32 %d)
 declare void @inalloca(<{ %struct.s }>* inalloca)
 
 declare i8* @llvm.stacksave()
@@ -250,7 +250,7 @@ entry:
   call void @good(i32 1, i32 2, i32 3, i32 4)
   %pv = ptrtoint i32* %p to i32
   %qv = ptrtoint i32* %q to i32
-  call void @struct(%struct.s* byval %s, i32 6, i32 %qv, i32 %pv)
+  call void @struct(%struct.s* byval(%struct.s) %s, i32 6, i32 %qv, i32 %pv)
   ret void
 }
 
@@ -402,7 +402,7 @@ entry:
 ; NORMAL: retl
 %struct.A = type { i32, i32 }
 %struct.B = type { i8 }
-declare x86_thiscallcc %struct.B* @B_ctor(%struct.B* returned, %struct.A* byval)
+declare x86_thiscallcc %struct.B* @B_ctor(%struct.B* returned, %struct.A* byval(%struct.A))
 declare void @B_func(%struct.B* sret, %struct.B*, i32)
 define void @test14(%struct.A* %a) {
 entry:
@@ -413,7 +413,7 @@ entry:
   %0 = bitcast %struct.A* %a to i64*
   %1 = load i64, i64* %0, align 4
   store i64 %1, i64* %agg.tmp, align 4
-  %call = call x86_thiscallcc %struct.B* @B_ctor(%struct.B* %ref.tmp, %struct.A* byval %tmpcast)
+  %call = call x86_thiscallcc %struct.B* @B_ctor(%struct.B* %ref.tmp, %struct.A* byval(%struct.A) %tmpcast)
   %2 = getelementptr inbounds %struct.B, %struct.B* %tmp, i32 0, i32 0
   call void @B_func(%struct.B* sret %tmp, %struct.B* %ref.tmp, i32 1)
   ret void

@@ -91,7 +91,7 @@ entry:
 ; GFX9-NEXT: v_add_u32_e32 v0, v0, v1
 
 ; GCN-NEXT: s_setpc_b64 s[30:31]
-define hidden fastcc i32 @i32_fastcc_i32_byval_i32(i32 %arg0, i32 addrspace(5)* byval align 4 %arg1) #1 {
+define hidden fastcc i32 @i32_fastcc_i32_byval_i32(i32 %arg0, i32 addrspace(5)* byval(i32) align 4 %arg1) #1 {
   %arg1.load = load i32, i32 addrspace(5)* %arg1, align 4
   %add0 = add i32 %arg0, %arg1.load
   ret i32 %add0
@@ -104,7 +104,7 @@ define hidden fastcc i32 @i32_fastcc_i32_byval_i32(i32 %arg0, i32 addrspace(5)* 
 ; GCN: s_swappc_b64
 ; GCN-NOT: v_readlane_b32 s32
 ; GCN: s_setpc_b64
-define fastcc i32 @sibling_call_i32_fastcc_i32_byval_i32_byval_parent(i32 %a, i32 addrspace(5)* byval %b.byval, i32 %c) #1 {
+define fastcc i32 @sibling_call_i32_fastcc_i32_byval_i32_byval_parent(i32 %a, i32 addrspace(5)* byval(i32) %b.byval, i32 %c) #1 {
 entry:
   %ret = tail call fastcc i32 @i32_fastcc_i32_byval_i32(i32 %a, i32 addrspace(5)* %b.byval)
   ret i32 %ret

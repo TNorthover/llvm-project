@@ -501,7 +501,7 @@ entry:
 ; GFX900-NEXT: s_setpc_b64
 
 ; NO-D16-HI: buffer_load_ushort v{{[0-9]+}}, off, s[0:3], s32 offset:4094{{$}}
-define void @load_private_hi_v2i16_reglo_vreg(i16 addrspace(5)* byval %in, i16 %reg) #0 {
+define void @load_private_hi_v2i16_reglo_vreg(i16 addrspace(5)* byval(i16) %in, i16 %reg) #0 {
 entry:
   %gep = getelementptr inbounds i16, i16 addrspace(5)* %in, i64 2047
   %load = load i16, i16 addrspace(5)* %gep
@@ -520,7 +520,7 @@ entry:
 ; GFX900-NEXT: s_setpc_b64
 
 ; NO-D16-HI: buffer_load_ushort v{{[0-9]+}}, off, s[0:3], s32 offset:4094{{$}}
-define void @load_private_hi_v2f16_reglo_vreg(half addrspace(5)* byval %in, half %reg) #0 {
+define void @load_private_hi_v2f16_reglo_vreg(half addrspace(5)* byval(half) %in, half %reg) #0 {
 entry:
   %gep = getelementptr inbounds half, half addrspace(5)* %in, i64 2047
   %load = load half, half addrspace(5)* %gep
@@ -539,7 +539,7 @@ entry:
 ; GFX900-NEXT: s_setpc_b64
 
 ; NO-D16-HI: buffer_load_ushort v{{[0-9]+}}, off, s[0:3], s33 offset:4094{{$}}
-define void @load_private_hi_v2i16_reglo_vreg_nooff(i16 addrspace(5)* byval %in, i16 %reg) #0 {
+define void @load_private_hi_v2i16_reglo_vreg_nooff(i16 addrspace(5)* byval(i16) %in, i16 %reg) #0 {
 entry:
   %load = load volatile i16, i16 addrspace(5)* inttoptr (i32 4094 to i16 addrspace(5)*)
   %build0 = insertelement <2 x i16> undef, i16 %reg, i32 0
@@ -575,7 +575,7 @@ entry:
 ; GFX900-NEXT: s_setpc_b64
 
 ; NO-D16-HI: buffer_load_ubyte v{{[0-9]+}}, off, s[0:3], s32 offset:4095{{$}}
-define void @load_private_hi_v2i16_reglo_vreg_zexti8(i8 addrspace(5)* byval %in, i16 %reg) #0 {
+define void @load_private_hi_v2i16_reglo_vreg_zexti8(i8 addrspace(5)* byval(i8) %in, i16 %reg) #0 {
 entry:
   %gep = getelementptr inbounds i8, i8 addrspace(5)* %in, i64 4095
   %load = load i8, i8 addrspace(5)* %gep
@@ -595,7 +595,7 @@ entry:
 ; GFX900-NEXT: s_setpc_b64
 
 ; NO-D16-HI: buffer_load_ubyte v{{[0-9]+}}, off, s[0:3], s32 offset:4095{{$}}
-define void @load_private_hi_v2f16_reglo_vreg_zexti8(i8 addrspace(5)* byval %in, half %reg) #0 {
+define void @load_private_hi_v2f16_reglo_vreg_zexti8(i8 addrspace(5)* byval(i8) %in, half %reg) #0 {
 entry:
   %gep = getelementptr inbounds i8, i8 addrspace(5)* %in, i64 4095
   %load = load i8, i8 addrspace(5)* %gep
@@ -616,7 +616,7 @@ entry:
 ; GFX900-NEXT: s_setpc_b64
 
 ; NO-D16-HI: buffer_load_sbyte v{{[0-9]+}}, off, s[0:3], s32 offset:4095{{$}}
-define void @load_private_hi_v2f16_reglo_vreg_sexti8(i8 addrspace(5)* byval %in, half %reg) #0 {
+define void @load_private_hi_v2f16_reglo_vreg_sexti8(i8 addrspace(5)* byval(i8) %in, half %reg) #0 {
 entry:
   %gep = getelementptr inbounds i8, i8 addrspace(5)* %in, i64 4095
   %load = load i8, i8 addrspace(5)* %gep
@@ -637,7 +637,7 @@ entry:
 ; GFX900-NEXT: s_setpc_b64
 
 ; NO-D16-HI: buffer_load_sbyte v{{[0-9]+}}, off, s[0:3], s32 offset:4095{{$}}
-define void @load_private_hi_v2i16_reglo_vreg_sexti8(i8 addrspace(5)* byval %in, i16 %reg) #0 {
+define void @load_private_hi_v2i16_reglo_vreg_sexti8(i8 addrspace(5)* byval(i8) %in, i16 %reg) #0 {
 entry:
   %gep = getelementptr inbounds i8, i8 addrspace(5)* %in, i64 4095
   %load = load i8, i8 addrspace(5)* %gep
@@ -980,7 +980,7 @@ entry:
 ; GFX900-NEXT: buffer_load_short_d16_hi v0, off, s[0:3], s32 offset:2
 ; GFX900-NEXT: s_waitcnt
 ; GFX900-NEXT: s_setpc_b64
-define <2 x i16> @load_private_v2i16_split(i16 addrspace(5)* byval %in) #0 {
+define <2 x i16> @load_private_v2i16_split(i16 addrspace(5)* byval(i16) %in) #0 {
 entry:
   %gep = getelementptr inbounds i16, i16 addrspace(5)* %in, i32 1
   %load0 = load volatile i16, i16 addrspace(5)* %in

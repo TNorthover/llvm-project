@@ -14,7 +14,7 @@ target triple = "powerpc64-unknown-linux-gnu"
 
 %struct.empty = type {}
 
-define void @callee(%struct.empty* noalias sret %agg.result, %struct.empty* byval %a1, %struct.empty* %a2, %struct.empty* byval %a3) nounwind {
+define void @callee(%struct.empty* noalias sret %agg.result, %struct.empty* byval(%struct.empty) %a1, %struct.empty* %a2, %struct.empty* byval(%struct.empty) %a3) nounwind {
 entry:
   %a2.addr = alloca %struct.empty*, align 8
   store %struct.empty* %a2, %struct.empty** %a2.addr, align 8
@@ -38,7 +38,7 @@ entry:
   %e1 = alloca %struct.empty, align 1
   %e2 = alloca %struct.empty, align 1
   %e3 = alloca %struct.empty, align 1
-  call void @callee(%struct.empty* sret %agg.result, %struct.empty* byval %e1, %struct.empty* %e2, %struct.empty* byval %e3)
+  call void @callee(%struct.empty* sret %agg.result, %struct.empty* byval(%struct.empty) %e1, %struct.empty* %e2, %struct.empty* byval(%struct.empty) %e3)
   ret void
 }
 

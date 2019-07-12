@@ -150,36 +150,36 @@ define void @unsound_readonly(i8* %ignored, i8* %escaped_then_written) {
 declare void @escape_i8(i8* %ptr)
 
 ; ATTRIBUTOR:      @byval_not_readonly_1
-; ATTRIBUTOR-SAME: i8* byval %written
-define void @byval_not_readonly_1(i8* byval %written) readonly {
+; ATTRIBUTOR-SAME: i8* byval(i8) %written
+define void @byval_not_readonly_1(i8* byval(i8) %written) readonly {
   call void @escape_i8(i8* %written)
   ret void
 }
 
 ; ATTRIBUTOR:      @byval_not_readonly_2
-; ATTRIBUTOR-SAME: i8* nocapture nofree nonnull writeonly byval dereferenceable(1) %written
-define void @byval_not_readonly_2(i8* byval %written) readonly {
+; ATTRIBUTOR-SAME: i8* nocapture nofree nonnull writeonly byval(i8) dereferenceable(1) %written
+define void @byval_not_readonly_2(i8* byval(i8) %written) readonly {
   store i8 0, i8* %written
   ret void
 }
 
 ; ATTRIBUTOR:      @byval_not_readnone_1
-; ATTRIBUTOR-SAME: i8* byval %written
-define void @byval_not_readnone_1(i8* byval %written) readnone {
+; ATTRIBUTOR-SAME: i8* byval(i8) %written
+define void @byval_not_readnone_1(i8* byval(i8) %written) readnone {
   call void @escape_i8(i8* %written)
   ret void
 }
 
 ; ATTRIBUTOR:      @byval_not_readnone_2
-; ATTRIBUTOR-SAME: i8* nocapture nofree nonnull writeonly byval dereferenceable(1) %written
-define void @byval_not_readnone_2(i8* byval %written) readnone {
+; ATTRIBUTOR-SAME: i8* nocapture nofree nonnull writeonly byval(i8) dereferenceable(1) %written
+define void @byval_not_readnone_2(i8* byval(i8) %written) readnone {
   store i8 0, i8* %written
   ret void
 }
 
 ; ATTRIBUTOR:      @byval_no_fnarg
-; ATTRIBUTOR-SAME: i8* nocapture nofree nonnull writeonly byval dereferenceable(1) %written
-define void @byval_no_fnarg(i8* byval %written) {
+; ATTRIBUTOR-SAME: i8* nocapture nofree nonnull writeonly byval(i8) dereferenceable(1) %written
+define void @byval_no_fnarg(i8* byval(i8) %written) {
   store i8 0, i8* %written
   ret void
 }

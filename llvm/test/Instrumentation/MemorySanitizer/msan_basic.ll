@@ -912,7 +912,7 @@ entry:
   %agg.tmp.sroa.2.0.copyload = load i64, i64* %agg.tmp.sroa.2.0..sroa_cast, align 4
   %1 = bitcast %struct.StructByVal* %agg.tmp2 to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 4 %1, i8* align 4 %0, i64 16, i1 false)
-  call void (i32, ...) @VAArgStructFn(i32 undef, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, %struct.StructByVal* byval align 8 %agg.tmp2)
+  call void (i32, ...) @VAArgStructFn(i32 undef, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, %struct.StructByVal* byval(%struct.StructByVal) align 8 %agg.tmp2)
   ret void
 }
 
@@ -948,7 +948,7 @@ entry:
   %agg.tmp.sroa.2.0.copyload = load i64, i64* %agg.tmp.sroa.2.0..sroa_cast, align 4
   %1 = bitcast %struct.StructByVal* %agg.tmp2 to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 4 %1, i8* align 4 %0, i64 16, i1 false)
-  call void (i32, ...) @VAArgStructFn(i32 undef, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, %struct.StructByVal* byval align 8 %agg.tmp2)
+  call void (i32, ...) @VAArgStructFn(i32 undef, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, i64 %agg.tmp.sroa.0.0.copyload, i64 %agg.tmp.sroa.2.0.copyload, %struct.StructByVal* byval(%struct.StructByVal) align 8 %agg.tmp2)
   ret void
 }
 

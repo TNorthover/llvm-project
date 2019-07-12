@@ -26,7 +26,7 @@ entry:
 ; CHECK: Unusual: noalias argument aliases another argument
 ; CHECK-NEXT: call void @f1(%s* sret %c, %s* %c)
 
-declare void @f3(%s* noalias nocapture sret, %s* byval nocapture readnone)
+declare void @f3(%s* noalias nocapture sret, %s* byval(%s) nocapture readnone)
 
 define void @f4() {
 entry:
@@ -35,7 +35,7 @@ entry:
   %0 = bitcast %s* %c to i8*
   %1 = bitcast %s* %tmp to i8*
   call void @llvm.memset.p0i8.i32(i8* %0, i8 0, i32 1, i1 false)
-  call void @f3(%s* sret %c, %s* byval %c)
+  call void @f3(%s* sret %c, %s* byval(%s) %c)
   ret void
 }
 

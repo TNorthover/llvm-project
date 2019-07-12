@@ -159,7 +159,7 @@ entry:
   %coerce.dive26 = getelementptr %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
   %7 = bitcast [2 x i16]* %coerce.dive26 to i32*
   %8 = load i32, i32* %7, align 1
-  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
+  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval(%struct.struct_large_nonchar) align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
   ret void
 }
 
@@ -304,7 +304,7 @@ entry:
   %coerce.dive26 = getelementptr %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
   %7 = bitcast [2 x i16]* %coerce.dive26 to i32*
   %8 = load i32, i32* %7, align 1
-  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
+  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval(%struct.struct_large_nonchar) align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
   ret void
 }
 
@@ -437,7 +437,7 @@ entry:
   %coerce.dive26 = getelementptr %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d, i32 0, i32 0
   %7 = bitcast [2 x i16]* %coerce.dive26 to i32*
   %8 = load i32, i32* %7, align 1
-  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
+  call void @takes_all(i64 %4, i16 %6, %struct.struct_large_nonchar* byval(%struct.struct_large_nonchar) align 4 %c, i32 %8, i8* %arraydecay, i8* %arraydecay22, i32* %arraydecay23, i16* %arraydecay24, i32* %ptr, i32 %0, i32 %1, i32 %2)
   ret void
 }
 
@@ -476,7 +476,7 @@ entry:
   %coerce.dive5 = getelementptr %struct.struct_small_nonchar, %struct.struct_small_nonchar* %d2, i32 0, i32 0
   %5 = bitcast [2 x i16]* %coerce.dive5 to i32*
   %6 = load i32, i32* %5, align 1
-  call void @takes_all(i64 %2, i16 %4, %struct.struct_large_nonchar* byval align 4 %d1, i32 %6, i8* null, i8* null, i32* null, i16* null, i32* null, i32 0, i32 0, i32 0)
+  call void @takes_all(i64 %2, i16 %4, %struct.struct_large_nonchar* byval(%struct.struct_large_nonchar) align 4 %d1, i32 %6, i8* null, i8* null, i32* null, i16* null, i32* null, i32 0, i32 0, i32 0)
   ret void
 }
 
@@ -519,4 +519,4 @@ declare void @end_struct_large_nonchar()
 declare signext i16 @get_struct_small_nonchar()
 declare void @end_struct_small_nonchar()
 
-declare void @takes_all(i64, i16, %struct.struct_large_nonchar* byval align 8, i32, i8*, i8*, i32*, i16*, i32*, i32, i32, i32)
+declare void @takes_all(i64, i16, %struct.struct_large_nonchar* byval(%struct.struct_large_nonchar) align 8, i32, i8*, i8*, i32*, i16*, i32*, i32, i32, i32)

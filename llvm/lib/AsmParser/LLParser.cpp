@@ -1620,7 +1620,7 @@ bool LLParser::ParseOptionalParamAttrs(AttrBuilder &B) {
     }
     case lltok::kw_byval: {
       Type *Ty;
-      if (ParseByValWithOptionalType(Ty))
+      if (ParseByValWithType(Ty))
         return true;
       B.addByValAttr(Ty);
       continue;
@@ -2491,19 +2491,15 @@ bool LLParser::ParseParameterList(SmallVectorImpl<ParamInfo> &ArgList,
   return false;
 }
 
-/// ParseByValWithOptionalType
-///   ::= byval
+/// ParseByValWithType
 ///   ::= byval(<ty>)
-bool LLParser::ParseByValWithOptionalType(Type *&Result) {
+bool LLParser::ParseByValWithType(Type *&Result) {
   Result = nullptr;
   if (!EatIfPresent(lltok::kw_byval))
     return true;
-  if (!EatIfPresent(lltok::lparen))
-    return false;
-  if (ParseType(Result))
-    return true;
-  if (!EatIfPresent(lltok::rparen))
-    return Error(Lex.getLoc(), "expected ')'");
+  if (!EatIfPresent(lltok::lparen) || ParseType(Result) ||
+      !EatIfPresent(lltok::rparen))
+    return TokError("expected '(<ty>)' after byval keyword");
   return false;
 }
 

@@ -6,7 +6,7 @@
 declare void @f(%struct.s* %p);
 
 ; CHECK-LABEL: t:
-define void @t(i32 %a, %struct.s* byval %s) nounwind {
+define void @t(i32 %a, %struct.s* byval(%struct.s) %s) nounwind {
 entry:
 
 ; Here we need to only check proper start address of restored %s argument.

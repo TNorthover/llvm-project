@@ -612,7 +612,7 @@ define amdgpu_kernel void @test_queue(%opencl.queue_t addrspace(1)* %a) #0
 ; CHECK-NEXT:       ValueKind:     HiddenMultiGridSyncArg
 ; CHECK-NEXT:       ValueType:     I8
 ; CHECK-NEXT:       AddrSpaceQual: Global
-define amdgpu_kernel void @test_struct(%struct.A addrspace(5)* byval %a) #0
+define amdgpu_kernel void @test_struct(%struct.A addrspace(5)* byval(%struct.A) %a) #0
     !kernel_arg_addr_space !1 !kernel_arg_access_qual !2 !kernel_arg_type !20
     !kernel_arg_base_type !20 !kernel_arg_type_qual !4 {
   ret void
@@ -1497,7 +1497,7 @@ define amdgpu_kernel void @test_arg_ptr_to_ptr(i32 addrspace(5)* addrspace(1)* %
 ; CHECK-NEXT:       ValueKind:     HiddenPrintfBuffer
 ; CHECK-NEXT:       ValueType:     I8
 ; CHECK-NEXT:       AddrSpaceQual: Global
-define amdgpu_kernel void @test_arg_struct_contains_ptr(%struct.B addrspace(5)* byval %a) #0
+define amdgpu_kernel void @test_arg_struct_contains_ptr(%struct.B addrspace(5)* byval(%struct.B) %a) #0
     !kernel_arg_addr_space !1 !kernel_arg_access_qual !2 !kernel_arg_type !82
     !kernel_arg_base_type !82 !kernel_arg_type_qual !4 {
  ret void

@@ -13,7 +13,7 @@
 ; GCN-NOT: s32
 ; GCN: buffer_store_dword [[LOAD1]], off, s[0:3], s32 offset:16{{$}}
 ; GCN-NOT: s32
-define hidden void @void_func_byval_struct(%struct.ByValStruct addrspace(5)* byval noalias nocapture align 4 %arg0, %struct.ByValStruct addrspace(5)* byval noalias nocapture align 4 %arg1) #1 {
+define hidden void @void_func_byval_struct(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) noalias nocapture align 4 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) noalias nocapture align 4 %arg1) #1 {
 entry:
   %arrayidx = getelementptr inbounds %struct.ByValStruct, %struct.ByValStruct addrspace(5)* %arg0, i32 0, i32 0, i32 0
   %tmp = load volatile i32, i32 addrspace(5)* %arrayidx, align 4
@@ -48,7 +48,7 @@ entry:
 
 ; GCN: [[BB1]]
 ; GCN: s_or_b64 exec, exec
-define hidden void @void_func_byval_struct_use_outside_entry_block(%struct.ByValStruct addrspace(5)* byval noalias nocapture align 4 %arg0, %struct.ByValStruct addrspace(5)* byval noalias nocapture align 4 %arg1, i1 %cond) #1 {
+define hidden void @void_func_byval_struct_use_outside_entry_block(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) noalias nocapture align 4 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) noalias nocapture align 4 %arg1, i1 %cond) #1 {
 entry:
   br i1 %cond, label %bb0, label %bb1
 
@@ -94,7 +94,7 @@ bb1:
 ; GCN: v_readlane_b32 s34, v33,
 ; GCN-DAG: buffer_load_dword v33, off, s[0:3], s32 offset:36 ; 4-byte Folded Reload
 ; GCN: s_setpc_b64
-define void  @void_func_byval_struct_non_leaf(%struct.ByValStruct addrspace(5)* byval noalias nocapture align 4 %arg0, %struct.ByValStruct addrspace(5)* byval noalias nocapture align 4 %arg1) #1 {
+define void  @void_func_byval_struct_non_leaf(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) noalias nocapture align 4 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) noalias nocapture align 4 %arg1) #1 {
 entry:
   %arrayidx = getelementptr inbounds %struct.ByValStruct, %struct.ByValStruct addrspace(5)* %arg0, i32 0, i32 0, i32 0
   %tmp = load volatile i32, i32 addrspace(5)* %arrayidx, align 4
@@ -166,7 +166,7 @@ entry:
   store volatile i32 9, i32 addrspace(5)* %arrayidx, align 4
   %arrayidx2 = getelementptr inbounds %struct.ByValStruct, %struct.ByValStruct addrspace(5)* %arg1, i32 0, i32 0, i32 0
   store volatile i32 13, i32 addrspace(5)* %arrayidx2, align 4
-  call void @void_func_byval_struct(%struct.ByValStruct addrspace(5)* byval nonnull align 4 %arg0, %struct.ByValStruct addrspace(5)* byval nonnull align 4 %arg1)
+  call void @void_func_byval_struct(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 4 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 4 %arg1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp)
   ret void
@@ -221,7 +221,7 @@ entry:
   store volatile i32 9, i32 addrspace(5)* %arrayidx, align 4
   %arrayidx2 = getelementptr inbounds %struct.ByValStruct, %struct.ByValStruct addrspace(5)* %arg1, i32 0, i32 0, i32 0
   store volatile i32 13, i32 addrspace(5)* %arrayidx2, align 4
-  call void @void_func_byval_struct(%struct.ByValStruct addrspace(5)* byval nonnull align 4 %arg0, %struct.ByValStruct addrspace(5)* byval nonnull align 4 %arg1)
+  call void @void_func_byval_struct(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 4 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 4 %arg1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp)
   ret void
@@ -237,7 +237,7 @@ entry:
 ; GCN-NOT: s32
 ; GCN: buffer_store_dword [[LOAD1]], off, s[0:3], s32 offset:16{{$}}
 ; GCN-NOT: s32
-define hidden void @void_func_byval_struct_align8(%struct.ByValStruct addrspace(5)* byval noalias nocapture align 8 %arg0, %struct.ByValStruct addrspace(5)* byval noalias nocapture align 8 %arg1) #1 {
+define hidden void @void_func_byval_struct_align8(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) noalias nocapture align 8 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) noalias nocapture align 8 %arg1) #1 {
 entry:
   %arrayidx = getelementptr inbounds %struct.ByValStruct, %struct.ByValStruct addrspace(5)* %arg0, i32 0, i32 0, i32 0
   %tmp = load volatile i32, i32 addrspace(5)* %arrayidx, align 8
@@ -302,7 +302,7 @@ entry:
   store volatile i32 9, i32 addrspace(5)* %arrayidx, align 8
   %arrayidx2 = getelementptr inbounds %struct.ByValStruct, %struct.ByValStruct addrspace(5)* %arg1, i32 0, i32 0, i32 0
   store volatile i32 13, i32 addrspace(5)* %arrayidx2, align 8
-  call void @void_func_byval_struct_align8(%struct.ByValStruct addrspace(5)* byval nonnull align 8 %arg0, %struct.ByValStruct addrspace(5)* byval nonnull align 8 %arg1)
+  call void @void_func_byval_struct_align8(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 8 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 8 %arg1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp)
   ret void
@@ -365,7 +365,7 @@ entry:
   store volatile i32 9, i32 addrspace(5)* %arrayidx, align 8
   %arrayidx2 = getelementptr inbounds %struct.ByValStruct, %struct.ByValStruct addrspace(5)* %arg1, i32 0, i32 0, i32 0
   store volatile i32 13, i32 addrspace(5)* %arrayidx2, align 8
-  call void @void_func_byval_struct_align8(%struct.ByValStruct addrspace(5)* byval nonnull align 8 %arg0, %struct.ByValStruct addrspace(5)* byval nonnull align 8 %arg1)
+  call void @void_func_byval_struct_align8(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 8 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 8 %arg1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp)
   ret void
@@ -384,7 +384,7 @@ entry:
   store volatile i32 9, i32 addrspace(5)* %arrayidx, align 4
   %arrayidx2 = getelementptr inbounds %struct.ByValStruct, %struct.ByValStruct addrspace(5)* %arg1, i32 0, i32 0, i32 0
   store volatile i32 13, i32 addrspace(5)* %arrayidx2, align 4
-  call void @void_func_byval_struct(%struct.ByValStruct addrspace(5)* byval nonnull align 4 %arg0, %struct.ByValStruct addrspace(5)* byval nonnull align 4 %arg1)
+  call void @void_func_byval_struct(%struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 4 %arg0, %struct.ByValStruct addrspace(5)* byval(%struct.ByValStruct) nonnull align 4 %arg1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp1)
   call void @llvm.lifetime.end.p5i8(i64 32, i8 addrspace(5)* %tmp)
   ret void

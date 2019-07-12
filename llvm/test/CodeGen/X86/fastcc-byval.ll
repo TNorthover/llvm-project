@@ -16,9 +16,9 @@ define fastcc i32 @bar() nounwind {
 	%V = alloca %struct.MVT
 	%a = getelementptr %struct.MVT, %struct.MVT* %V, i32 0, i32 0
 	store i32 1, i32* %a
-	call fastcc void @foo(%struct.MVT* byval %V) nounwind
+	call fastcc void @foo(%struct.MVT* byval(%struct.MVT) %V) nounwind
 	%t = load i32, i32* %a
 	ret i32 %t
 }
 
-declare fastcc void @foo(%struct.MVT* byval)
+declare fastcc void @foo(%struct.MVT* byval(%struct.MVT))

@@ -5,9 +5,9 @@ target datalayout = "E-p:64:64:64-a0:0:8-f32:32:32-f64:64:64-i1:8:8-i8:8:8-i16:1
 
 %struct.ss = type { i32, i64 }
 
-define internal void @f(%struct.ss* byval  %b) nounwind  {
+define internal void @f(%struct.ss* byval(%struct.ss)  %b) nounwind  {
 ; CHECK-LABEL: define {{[^@]+}}@f
-; CHECK-SAME: (%struct.ss* noalias nocapture nofree nonnull byval align 8 dereferenceable(12) [[B:%.*]])
+; CHECK-SAME: (%struct.ss* noalias nocapture nofree nonnull byval(%struct.ss) align 8 dereferenceable(12) [[B:%.*]])
 ; CHECK-NEXT:  entry:
 ; CHECK-NEXT:    [[TMP:%.*]] = getelementptr [[STRUCT_SS:%.*]], %struct.ss* [[B]], i32 0, i32 0
 ; CHECK-NEXT:    [[TMP1:%.*]] = load i32, i32* [[TMP]], align 8
@@ -24,9 +24,9 @@ entry:
 }
 
 
-define internal void @g(%struct.ss* byval align 32 %b) nounwind {
+define internal void @g(%struct.ss* byval(%struct.ss) align 32 %b) nounwind {
 ; CHECK-LABEL: define {{[^@]+}}@g
-; CHECK-SAME: (%struct.ss* noalias nocapture nofree nonnull byval align 32 dereferenceable(12) [[B:%.*]])
+; CHECK-SAME: (%struct.ss* noalias nocapture nofree nonnull byval(%struct.ss) align 32 dereferenceable(12) [[B:%.*]])
 ; CHECK-NEXT:  entry:
 ; CHECK-NEXT:    [[TMP:%.*]] = getelementptr [[STRUCT_SS:%.*]], %struct.ss* [[B]], i32 0, i32 0
 ; CHECK-NEXT:    [[TMP1:%.*]] = load i32, i32* [[TMP]], align 32
@@ -51,8 +51,8 @@ define i32 @main() nounwind  {
 ; CHECK-NEXT:    store i32 1, i32* [[TMP1]], align 8
 ; CHECK-NEXT:    [[TMP4:%.*]] = getelementptr [[STRUCT_SS]], %struct.ss* [[S]], i32 0, i32 1
 ; CHECK-NEXT:    store i64 2, i64* [[TMP4]], align 4
-; CHECK-NEXT:    call void @f(%struct.ss* noalias nocapture nofree nonnull byval align 8 dereferenceable(12) [[S]])
-; CHECK-NEXT:    call void @g(%struct.ss* noalias nocapture nofree nonnull byval align 32 dereferenceable(12) [[S]])
+; CHECK-NEXT:    call void @f(%struct.ss* noalias nocapture nofree nonnull byval(%struct.ss) align 8 dereferenceable(12) [[S]])
+; CHECK-NEXT:    call void @g(%struct.ss* noalias nocapture nofree nonnull byval(%struct.ss) align 32 dereferenceable(12) [[S]])
 ; CHECK-NEXT:    ret i32 0
 ;
 entry:
@@ -61,8 +61,8 @@ entry:
   store i32 1, i32* %tmp1, align 8
   %tmp4 = getelementptr %struct.ss, %struct.ss* %S, i32 0, i32 1
   store i64 2, i64* %tmp4, align 4
-  call void @f(%struct.ss* byval %S) nounwind
-  call void @g(%struct.ss* byval %S) nounwind
+  call void @f(%struct.ss* byval(%struct.ss) %S) nounwind
+  call void @g(%struct.ss* byval(%struct.ss) %S) nounwind
   ret i32 0
 }
 

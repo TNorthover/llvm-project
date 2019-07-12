@@ -5,7 +5,7 @@
 
 %struct.s = type { i64, i64, i64 }
 
-define i64 @f(%struct.s* byval %a) {
+define i64 @f(%struct.s* byval(%struct.s) %a) {
 ; X86-64-LABEL: f:
 ; X86-64:       # %bb.0: # %entry
 ; X86-64-NEXT:    movq 8(%rsp), %rax

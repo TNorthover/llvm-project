@@ -120,7 +120,7 @@ define void @func_load_private_arg_i32_ptr(i32 addrspace(5)* %ptr) #0 {
 
 ; GCN-NOT: v_mov
 ; GCN: ds_write_b32 v0, v0
-define void @void_func_byval_struct_i8_i32_ptr({ i8, i32 } addrspace(5)* byval %arg0) #0 {
+define void @void_func_byval_struct_i8_i32_ptr({ i8, i32 } addrspace(5)* byval({ i8, i32 }) %arg0) #0 {
   %gep0 = getelementptr inbounds { i8, i32 }, { i8, i32 } addrspace(5)* %arg0, i32 0, i32 0
   %gep1 = getelementptr inbounds { i8, i32 }, { i8, i32 } addrspace(5)* %arg0, i32 0, i32 1
   %load1 = load i32, i32 addrspace(5)* %gep1
@@ -132,7 +132,7 @@ define void @void_func_byval_struct_i8_i32_ptr({ i8, i32 } addrspace(5)* byval %
 ; GCN: s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
 ; GCN-NEXT: buffer_load_ubyte v0, off, s[0:3], s32
 ; GCN_NEXT: buffer_load_dword v1, off, s[0:3], s32 offset:4
-define void @void_func_byval_struct_i8_i32_ptr_value({ i8, i32 } addrspace(5)* byval %arg0) #0 {
+define void @void_func_byval_struct_i8_i32_ptr_value({ i8, i32 } addrspace(5)* byval({ i8, i32 }) %arg0) #0 {
   %gep0 = getelementptr inbounds { i8, i32 }, { i8, i32 } addrspace(5)* %arg0, i32 0, i32 0
   %gep1 = getelementptr inbounds { i8, i32 }, { i8, i32 } addrspace(5)* %arg0, i32 0, i32 1
   %load0 = load i8, i8 addrspace(5)* %gep0
@@ -158,7 +158,7 @@ define void @void_func_byval_struct_i8_i32_ptr_value({ i8, i32 } addrspace(5)* b
 ; GFX9: buffer_load_dword v{{[0-9]+}}, off, s[0:3], s32 offset:4{{$}}
 
 ; GCN: ds_write_b32 v{{[0-9]+}}, [[GEP]]
-define void @void_func_byval_struct_i8_i32_ptr_nonentry_block({ i8, i32 } addrspace(5)* byval %arg0, i32 %arg2) #0 {
+define void @void_func_byval_struct_i8_i32_ptr_nonentry_block({ i8, i32 } addrspace(5)* byval({ i8, i32 }) %arg0, i32 %arg2) #0 {
   %cmp = icmp eq i32 %arg2, 0
   br i1 %cmp, label %bb, label %ret
 

@@ -1,6 +1,6 @@
 ; RUN: llc -mtriple x86_64-w64-mingw32 %s -o - | FileCheck %s
 
-declare void @foo({ float, double }* byval)
+declare void @foo({ float, double }* byval({ float, double }))
 @G = external constant { float, double }
 
 define void @bar()
@@ -14,11 +14,11 @@ define void @bar()
 ; CHECK: movq    %rax, 40(%rsp)
 ; CHECK: movq    %rcx, 32(%rsp)
 ; CHECK: leaq    32(%rsp), %rcx
-    call void @foo({ float, double }* byval @G)
+    call void @foo({ float, double }* byval({ float, double }) @G)
     ret void
 }
 
-define void @baz({ float, double }* byval %arg)
+define void @baz({ float, double }* byval({ float, double }) %arg)
 {
 ; On Win64 the byval is effectively ignored on declarations, since we do
 ; pass a real pointer in registers. However, by our semantics if we pass
@@ -29,6 +29,6 @@ define void @baz({ float, double }* byval %arg)
 ; CHECK: movq	%rcx, 40(%rsp)
 ; CHECK: movq	%rax, 32(%rsp)
 ; CHECK: leaq	32(%rsp), %rcx
-    call void @foo({ float, double }* byval %arg)
+    call void @foo({ float, double }* byval({ float, double }) %arg)
     ret void
 }

@@ -413,7 +413,7 @@ define void @no_unused_non_csr_sgpr_for_fp_no_scratch_vgpr() #1 {
 ; GCN-NEXT: s_mov_b64 exec, [[COPY_EXEC1]]
 ; GCN-NEXT: s_waitcnt vmcnt(0)
 ; GCN-NEXT: s_setpc_b64
-define void @scratch_reg_needed_mubuf_offset([4096 x i8] addrspace(5)* byval align 4 %arg) #1 {
+define void @scratch_reg_needed_mubuf_offset([4096 x i8] addrspace(5)* byval([4096 x i8]) align 4 %arg) #1 {
   %alloca = alloca i32, addrspace(5)
   store volatile i32 0, i32 addrspace(5)* %alloca
 
