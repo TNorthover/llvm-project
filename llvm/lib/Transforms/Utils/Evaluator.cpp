@@ -129,14 +129,10 @@ isSimpleEnoughValueToCommit(Constant *C,
 /// globals and GEP's of globals.  This should be kept up to date with
 /// CommitValueTo.
 static bool isSimpleEnoughPointerToCommit(Constant *C) {
-  // Conservatively, avoid aggregate types. This is because we don't
-  // want to worry about them partially overlapping other stores.
-  if (!cast<PointerType>(C->getType())->getElementType()->isSingleValueType())
-    return false;
-
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(C))
     // Do not allow weak/*_odr/linkonce linkage or external globals.
-    return GV->hasUniqueInitializer();
+    return GV->hasUniqueInitializer() &&
+           GV->getValueType()->isSingleValueType();
 
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
     // Handle a constantexpr gep.
@@ -146,7 +142,8 @@ static bool isSimpleEnoughPointerToCommit(Constant *C) {
       GlobalVariable *GV = cast<GlobalVariable>(CE->getOperand(0));
       // Do not allow weak/*_odr/linkonce/dllimport/dllexport linkage or
       // external globals.
-      if (!GV->hasUniqueInitializer())
+      if (!GV->hasUniqueInitializer() ||
+          !cast<GEPOperator>(CE)->getResultElementType()->isSingleValueType())
         return false;
 
       // The first index must be zero.
@@ -167,7 +164,8 @@ static bool isSimpleEnoughPointerToCommit(Constant *C) {
                isa<GlobalVariable>(CE->getOperand(0))) {
       // Do not allow weak/*_odr/linkonce/dllimport/dllexport linkage or
       // external globals.
-      return cast<GlobalVariable>(CE->getOperand(0))->hasUniqueInitializer();
+      auto GV = dyn_cast<GlobalVariable>(CE->getOperand(0));
+      return GV->hasUniqueInitializer() && GV->getType()->isSingleValueType();
     }
   }
 

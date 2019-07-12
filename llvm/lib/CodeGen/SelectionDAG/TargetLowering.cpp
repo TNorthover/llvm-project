@@ -4248,13 +4248,6 @@ TargetLowering::ParseConstraints(const DataLayout &DL,
 
     if (OpInfo.CallOperandVal) {
       llvm::Type *OpTy = OpInfo.CallOperandVal->getType();
-      if (OpInfo.isIndirect) {
-        llvm::PointerType *PtrTy = dyn_cast<PointerType>(OpTy);
-        if (!PtrTy)
-          report_fatal_error("Indirect operand for inline asm not a pointer!");
-        OpTy = PtrTy->getElementType();
-      }
-
       // Look for vector wrapped in a struct. e.g. { <16 x i8> }.
       if (StructType *STy = dyn_cast<StructType>(OpTy))
         if (STy->getNumElements() == 1)

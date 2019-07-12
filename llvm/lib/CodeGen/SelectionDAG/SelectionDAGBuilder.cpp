@@ -9048,7 +9048,7 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
     // FIXME: Split arguments if CLI.IsPostTypeLegalization
     Type *FinalType = Args[i].Ty;
     if (Args[i].IsByVal)
-      FinalType = cast<PointerType>(Args[i].Ty)->getElementType();
+      FinalType = Args[i].ByValType;
     bool NeedsRegBlock = functionArgumentNeedsConsecutiveRegisters(
         FinalType, CLI.CallConv, CLI.IsVarArg);
     for (unsigned Value = 0, NumValues = ValueVTs.size(); Value != NumValues;
@@ -9106,11 +9106,9 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
         Flags.setByVal();
       }
       if (Args[i].IsByVal || Args[i].IsInAlloca) {
-        PointerType *Ty = cast<PointerType>(Args[i].Ty);
-        Type *ElementTy = Ty->getElementType();
-
-        unsigned FrameSize = DL.getTypeAllocSize(
-            Args[i].ByValType ? Args[i].ByValType : ElementTy);
+        Type *EltTy = Args[i].IsByVal ? Args[i].ByValType
+                                      : Args[i].Ty->getPointerElementType();
+        unsigned FrameSize = DL.getTypeAllocSize(EltTy);
         Flags.setByValSize(FrameSize);
 
         // info is not there but there are cases it cannot get right.
@@ -9118,7 +9116,7 @@ TargetLowering::LowerCallTo(TargetLowering::CallLoweringInfo &CLI) const {
         if (Args[i].Alignment)
           FrameAlign = Args[i].Alignment;
         else
-          FrameAlign = getByValTypeAlignment(ElementTy, DL);
+          FrameAlign = getByValTypeAlignment(EltTy, DL);
         Flags.setByValAlign(Align(FrameAlign));
       }
       if (Args[i].IsNest)
