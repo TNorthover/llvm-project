@@ -405,12 +405,13 @@ static bool hasOutsideLoopUser(const Loop *TheLoop, Instruction *Inst,
   return false;
 }
 
-int LoopVectorizationLegality::isConsecutivePtr(Value *Ptr) {
+int LoopVectorizationLegality::isConsecutivePtr(Value *Ptr, unsigned EltSize) {
   const ValueToValueMap &Strides =
       getSymbolicStrides() ? *getSymbolicStrides() : ValueToValueMap();
 
   bool CanAddPredicate = !TheLoop->getHeader()->getParent()->hasOptSize();
-  int Stride = getPtrStride(PSE, Ptr, TheLoop, Strides, CanAddPredicate, false);
+  int Stride =
+      getPtrStride(PSE, Ptr, EltSize, TheLoop, Strides, CanAddPredicate, false);
   if (Stride == 1 || Stride == -1)
     return Stride;
   return 0;

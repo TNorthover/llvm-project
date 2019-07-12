@@ -822,6 +822,7 @@ void InterleavedAccessInfo::collectConstStrideAccesses(
         continue;
 
       Value *Ptr = getLoadStorePointerOperand(&I);
+      uint64_t Size = DL.getTypeAllocSize(getLoadStoreValueType(&I));
       // We don't check wrapping here because we don't know yet if Ptr will be
       // part of a full group or a group with gaps. Checking wrapping for all
       // pointers (even those that end up in groups with no gaps) will be overly
@@ -829,12 +830,11 @@ void InterleavedAccessInfo::collectConstStrideAccesses(
       // wrap around the address space we would do a memory access at nullptr
       // even without the transformation. The wrapping checks are therefore
       // deferred until after we've formed the interleaved groups.
-      int64_t Stride = getPtrStride(PSE, Ptr, TheLoop, Strides,
+      int64_t Stride = getPtrStride(PSE, Ptr, Size, TheLoop, Strides,
                                     /*Assume=*/true, /*ShouldCheckWrap=*/false);
 
       const SCEV *Scev = replaceSymbolicStrideSCEV(PSE, Strides, Ptr);
       PointerType *PtrTy = cast<PointerType>(Ptr->getType());
-      uint64_t Size = DL.getTypeAllocSize(PtrTy->getElementType());
 
       // An alignment of 0 means target ABI alignment.
       MaybeAlign Alignment = MaybeAlign(getLoadStoreAlignment(&I));
@@ -1070,6 +1070,7 @@ void InterleavedAccessInfo::analyzeInterleaving(
   // This means that we can forcefully peel the loop in order to only have to
   // check the first pointer for no-wrap. When we'll change to use Assume=true
   // we'll only need at most one runtime check per interleaved group.
+  auto &DL = TheLoop->getHeader()->getModule()->getDataLayout();
   for (auto *Group : LoadGroups) {
     // Case 1: A full group. Can Skip the checks; For full groups, if the wide
     // load would wrap around the address space we would do a memory access at
@@ -1083,7 +1084,10 @@ void InterleavedAccessInfo::analyzeInterleaving(
     // and group member Factor - 1; If the latter doesn't exist we rely on
     // peeling (if it is a non-reversed accsess -- see Case 3).
     Value *FirstMemberPtr = getLoadStorePointerOperand(Group->getMember(0));
-    if (!getPtrStride(PSE, FirstMemberPtr, TheLoop, Strides, /*Assume=*/false,
+    unsigned Size =
+        DL.getTypeAllocSize(getLoadStoreValueType(Group->getMember(0)));
+    if (!getPtrStride(PSE, FirstMemberPtr, Size, TheLoop, Strides,
+                      /*Assume=*/false,
                       /*ShouldCheckWrap=*/true)) {
       LLVM_DEBUG(
           dbgs() << "LV: Invalidate candidate interleaved group due to "
@@ -1094,7 +1098,9 @@ void InterleavedAccessInfo::analyzeInterleaving(
     Instruction *LastMember = Group->getMember(Group->getFactor() - 1);
     if (LastMember) {
       Value *LastMemberPtr = getLoadStorePointerOperand(LastMember);
-      if (!getPtrStride(PSE, LastMemberPtr, TheLoop, Strides, /*Assume=*/false,
+      unsigned Size = DL.getTypeStoreSize(getLoadStoreValueType(LastMember));
+      if (!getPtrStride(PSE, LastMemberPtr, Size, TheLoop, Strides,
+                        /*Assume=*/false,
                         /*ShouldCheckWrap=*/true)) {
         LLVM_DEBUG(
             dbgs() << "LV: Invalidate candidate interleaved group due to "

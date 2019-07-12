@@ -100,22 +100,21 @@ struct StoreToLoadForwardingCandidate {
     Value *LoadPtr = Load->getPointerOperand();
     Value *StorePtr = Store->getPointerOperand();
     Type *LoadPtrType = LoadPtr->getType();
-    Type *LoadType = LoadPtrType->getPointerElementType();
+    Type *LoadType = getLoadStoreValueType(Load);
 
     assert(LoadPtrType->getPointerAddressSpace() ==
                StorePtr->getType()->getPointerAddressSpace() &&
-           LoadType == StorePtr->getType()->getPointerElementType() &&
+           LoadType == getLoadStoreValueType(Store) &&
            "Should be a known dependence");
 
     // Currently we only support accesses with unit stride.  FIXME: we should be
     // able to handle non unit stirde as well as long as the stride is equal to
     // the dependence distance.
-    if (getPtrStride(PSE, LoadPtr, L) != 1 ||
-        getPtrStride(PSE, StorePtr, L) != 1)
-      return false;
-
     auto &DL = Load->getParent()->getModule()->getDataLayout();
-    unsigned TypeByteSize = DL.getTypeAllocSize(const_cast<Type *>(LoadType));
+    unsigned TypeByteSize = DL.getTypeStoreSize(LoadType);
+    if (getPtrStride(PSE, LoadPtr, TypeByteSize, L) != 1 ||
+        getPtrStride(PSE, StorePtr, TypeByteSize, L) != 1)
+      return false;
 
     auto *LoadPtrSCEV = cast<SCEVAddRecExpr>(PSE.getSCEV(LoadPtr));
     auto *StorePtrSCEV = cast<SCEVAddRecExpr>(PSE.getSCEV(StorePtr));

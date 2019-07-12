@@ -1104,7 +1104,10 @@ static bool canTailPredicateLoop(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
 
       if (isa<StoreInst>(I) || isa<LoadInst>(I)) {
         Value *Ptr = isa<LoadInst>(I) ? I.getOperand(0) : I.getOperand(1);
-        int64_t NextStride = getPtrStride(PSE, Ptr, L);
+        Type *ValTy =
+            isa<LoadInst>(I) ? I.getType() : I.getOperand(0)->getType();
+        int64_t NextStride =
+            getPtrStride(PSE, Ptr, ValTy->getScalarSizeInBits(), L);
         // TODO: for now only allow consecutive strides of 1. We could support
         // other strides as long as it is uniform, but let's keep it simple for
         // now.

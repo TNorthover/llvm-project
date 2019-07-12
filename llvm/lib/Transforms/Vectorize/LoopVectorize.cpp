@@ -964,9 +964,10 @@ public:
                              OptimizationRemarkEmitter *ORE, const Function *F,
                              const LoopVectorizeHints *Hints,
                              InterleavedAccessInfo &IAI)
-      : ScalarEpilogueStatus(SEL), TheLoop(L), PSE(PSE), LI(LI), Legal(Legal),
-        TTI(TTI), TLI(TLI), DB(DB), AC(AC), ORE(ORE), TheFunction(F),
-        Hints(Hints), InterleaveInfo(IAI) {}
+      : ScalarEpilogueStatus(SEL),
+        DL(L->getHeader()->getModule()->getDataLayout()), TheLoop(L), PSE(PSE),
+        LI(LI), Legal(Legal), TTI(TTI), TLI(TLI), DB(DB), AC(AC), ORE(ORE),
+        TheFunction(F), Hints(Hints), InterleaveInfo(IAI) {}
 
   /// \return An upper bound for the vectorization factor, or None if
   /// vectorization and interleaving should be avoided up front.
@@ -1197,14 +1198,14 @@ public:
   /// Returns true if the target machine supports masked store operation
   /// for the given \p DataType and kind of access to \p Ptr.
   bool isLegalMaskedStore(Type *DataType, Value *Ptr, MaybeAlign Alignment) {
-    return Legal->isConsecutivePtr(Ptr) &&
+    return Legal->isConsecutivePtr(Ptr, DL.getTypeStoreSize(DataType)) &&
            TTI.isLegalMaskedStore(DataType, Alignment);
   }
 
   /// Returns true if the target machine supports masked load operation
   /// for the given \p DataType and kind of access to \p Ptr.
   bool isLegalMaskedLoad(Type *DataType, Value *Ptr, MaybeAlign Alignment) {
-    return Legal->isConsecutivePtr(Ptr) &&
+    return Legal->isConsecutivePtr(Ptr, DL.getTypeStoreSize(DataType)) &&
            TTI.isLegalMaskedLoad(DataType, Alignment);
   }
 
@@ -1467,6 +1468,8 @@ private:
     return SmallVector<Value *, 4>(make_filter_range(
         Ops, [this, VF](Value *V) { return this->needsExtract(V, VF); }));
   }
+
+  const DataLayout &DL;
 
 public:
   /// The loop that we evaluate.
@@ -4637,9 +4640,10 @@ bool LoopVectorizationCostModel::memoryInstructionCanBeWidened(Instruction *I,
   assert((LI || SI) && "Invalid memory instruction");
 
   auto *Ptr = getLoadStorePointerOperand(I);
+  auto *Ty = getLoadStoreValueType(I);
 
   // In order to be widened, the pointer should be consecutive, first of all.
-  if (!Legal->isConsecutivePtr(Ptr))
+  if (!Legal->isConsecutivePtr(Ptr, DL.getTypeStoreSize(Ty)))
     return false;
 
   // If the instruction is a store located in a predicated block, it will be
@@ -5794,7 +5798,8 @@ unsigned LoopVectorizationCostModel::getConsecutiveMemOpCost(Instruction *I,
   Type *VectorTy = ToVectorTy(ValTy, VF);
   Value *Ptr = getLoadStorePointerOperand(I);
   unsigned AS = getLoadStoreAddressSpace(I);
-  int ConsecutiveStride = Legal->isConsecutivePtr(Ptr);
+  int ConsecutiveStride =
+      Legal->isConsecutivePtr(Ptr, DL.getTypeStoreSize(ValTy));
 
   assert((ConsecutiveStride == 1 || ConsecutiveStride == -1) &&
          "Stride should be 1 or -1 for consecutive memory access");
@@ -5991,8 +5996,9 @@ void LoopVectorizationCostModel::setCostBasedWideningDecision(unsigned VF) {
       // We assume that widening is the best solution when possible.
       if (memoryInstructionCanBeWidened(&I, VF)) {
         unsigned Cost = getConsecutiveMemOpCost(&I, VF);
+        unsigned Size = DL.getTypeStoreSize(getLoadStoreValueType(&I));
         int ConsecutiveStride =
-               Legal->isConsecutivePtr(getLoadStorePointerOperand(&I));
+            Legal->isConsecutivePtr(getLoadStorePointerOperand(&I), Size);
         assert((ConsecutiveStride == 1 || ConsecutiveStride == -1) &&
                "Expected consecutive stride.");
         InstWidening Decision =
@@ -6372,8 +6378,10 @@ Pass *createLoopVectorizePass(bool InterleaveOnlyWhenForced,
 bool LoopVectorizationCostModel::isConsecutiveLoadOrStore(Instruction *Inst) {
   // Check if the pointer operand of a load or store instruction is
   // consecutive.
-  if (auto *Ptr = getLoadStorePointerOperand(Inst))
-    return Legal->isConsecutivePtr(Ptr);
+  if (auto *Ptr = getLoadStorePointerOperand(Inst)) {
+    unsigned Size = DL.getTypeStoreSize(getLoadStoreValueType(Inst));
+    return Legal->isConsecutivePtr(Ptr, Size);
+  }
   return false;
 }
 

@@ -177,7 +177,8 @@ public:
   MemoryDepChecker(PredicatedScalarEvolution &PSE, const Loop *L)
       : PSE(PSE), InnermostLoop(L), AccessIdx(0), MaxSafeDepDistBytes(0),
         MaxSafeRegisterWidth(-1U), FoundNonConstantDistanceDependence(false),
-        Status(VectorizationSafetyStatus::Safe), RecordDependences(true) {}
+        Status(VectorizationSafetyStatus::Safe), RecordDependences(true),
+        DL(L->getHeader()->getModule()->getDataLayout()) {}
 
   /// Register the location (instructions are given increasing numbers)
   /// of a write access.
@@ -196,6 +197,26 @@ public:
     InstMap.push_back(LI);
     ++AccessIdx;
   }
+
+  unsigned getAccessSize(MemAccessInfo Access) const {
+    bool IsStore = Access.getInt();
+    SmallVector<Instruction *, 4> Insts =
+        getInstructionsForAccess(Access.getPointer(), Access.getInt());
+
+    unsigned Size = 0;
+    for (auto I : Insts) {
+      Type *Ty;
+      if (IsStore)
+        Ty = cast<StoreInst>(I)->getValueOperand()->getType();
+      else
+        Ty = cast<LoadInst>(I)->getType();
+
+      Size = std::max(Size, (unsigned)DL.getTypeStoreSize(Ty));
+    }
+
+    return Size;
+  }
+
 
   /// Check whether the dependencies between the accesses are safe.
   ///
@@ -299,6 +320,8 @@ private:
   /// Memory dependences collected during the analysis.  Only valid if
   /// RecordDependences is true.
   SmallVector<Dependence, 8> Dependences;
+
+  const DataLayout &DL;
 
   /// Check whether there is a plausible dependence between the two
   /// accesses.
@@ -690,7 +713,8 @@ const SCEV *replaceSymbolicStrideSCEV(PredicatedScalarEvolution &PSE,
 /// to \p PtrToStride and therefore add further predicates to \p PSE.
 /// The \p Assume parameter indicates if we are allowed to make additional
 /// run-time assumptions.
-int64_t getPtrStride(PredicatedScalarEvolution &PSE, Value *Ptr, const Loop *Lp,
+int64_t getPtrStride(PredicatedScalarEvolution &PSE, Value *Ptr, unsigned Size,
+                     const Loop *Lp,
                      const ValueToValueMap &StridesMap = ValueToValueMap(),
                      bool Assume = false, bool ShouldCheckWrap = true);
 
