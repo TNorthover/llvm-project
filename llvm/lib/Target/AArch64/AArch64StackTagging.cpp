@@ -224,7 +224,7 @@ public:
                       << ") zero\n");
     Value *Ptr = BasePtr;
     if (Offset)
-      Ptr = IRB.CreateConstGEP1_32(Ptr, Offset);
+      Ptr = IRB.CreateConstGEP1_32(IRB.getInt8Ty(), Ptr, Offset);
     IRB.CreateCall(SetTagZeroFn,
                    {Ptr, ConstantInt::get(IRB.getInt64Ty(), Size)});
   }
@@ -234,7 +234,7 @@ public:
                       << ") undef\n");
     Value *Ptr = BasePtr;
     if (Offset)
-      Ptr = IRB.CreateConstGEP1_32(Ptr, Offset);
+      Ptr = IRB.CreateConstGEP1_32(IRB.getInt8Ty(), Ptr, Offset);
     IRB.CreateCall(SetTagFn, {Ptr, ConstantInt::get(IRB.getInt64Ty(), Size)});
   }
 
@@ -243,7 +243,7 @@ public:
     LLVM_DEBUG(dbgs() << "    " << *A << "\n    " << *B << "\n");
     Value *Ptr = BasePtr;
     if (Offset)
-      Ptr = IRB.CreateConstGEP1_32(Ptr, Offset);
+      Ptr = IRB.CreateConstGEP1_32(IRB.getInt8Ty(), Ptr, Offset);
     IRB.CreateCall(StgpFn, {Ptr, A, B});
   }
 
