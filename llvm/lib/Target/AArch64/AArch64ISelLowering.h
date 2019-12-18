@@ -452,7 +452,7 @@ public:
   bool isExtractSubvectorCheap(EVT ResVT, EVT SrcVT,
                                unsigned Index) const override;
 
-  Value *emitLoadLinked(IRBuilder<> &Builder, Value *Addr,
+Value *emitLoadLinked(IRBuilder<> &Builder, Type *ValTy, Value *Addr,
                         AtomicOrdering Ord) const override;
   Value *emitStoreConditional(IRBuilder<> &Builder, Value *Val,
                               Value *Addr, AtomicOrdering Ord) const override;

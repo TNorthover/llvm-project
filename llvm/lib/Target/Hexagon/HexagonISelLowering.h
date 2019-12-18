@@ -317,8 +317,8 @@ namespace HexagonISD {
                                EVT NewVT) const override;
 
     // Handling of atomic RMW instructions.
-    Value *emitLoadLinked(IRBuilder<> &Builder, Value *Addr,
-        AtomicOrdering Ord) const override;
+    Value *emitLoadLinked(IRBuilder<> &Builder, Type *Ty, Value *Addr,
+                          AtomicOrdering Ord) const override;
     Value *emitStoreConditional(IRBuilder<> &Builder, Value *Val,
         Value *Addr, AtomicOrdering Ord) const override;
     AtomicExpansionKind shouldExpandAtomicLoadInIR(LoadInst *LI) const override;
