@@ -536,7 +536,7 @@ class VectorType;
     getExceptionSelectorRegister(const Constant *PersonalityFn) const override;
 
     Instruction *makeDMB(IRBuilder<> &Builder, ARM_MB::MemBOpt Domain) const;
-    Value *emitLoadLinked(IRBuilder<> &Builder, Value *Addr,
+    Value *emitLoadLinked(IRBuilder<> &Builder, Type *ValTy, Value *Addr,
                           AtomicOrdering Ord) const override;
     Value *emitStoreConditional(IRBuilder<> &Builder, Value *Val,
                                 Value *Addr, AtomicOrdering Ord) const override;

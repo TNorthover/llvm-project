@@ -3300,12 +3300,12 @@ bool HexagonTargetLowering::shouldReduceLoadWidth(SDNode *Load,
   return true;
 }
 
-Value *HexagonTargetLowering::emitLoadLinked(IRBuilder<> &Builder, Value *Addr,
-      AtomicOrdering Ord) const {
+Value *HexagonTargetLowering::emitLoadLinked(IRBuilder<> &Builder, Type *Ty,
+                                             Value *Addr,
+                                             AtomicOrdering Ord) const {
   BasicBlock *BB = Builder.GetInsertBlock();
   Module *M = BB->getParent()->getParent();
   auto PT = cast<PointerType>(Addr->getType());
-  Type *Ty = PT->getElementType();
   unsigned SZ = Ty->getPrimitiveSizeInBits();
   assert((SZ == 32 || SZ == 64) && "Only 32/64-bit atomic loads supported");
   Intrinsic::ID IntID = (SZ == 32) ? Intrinsic::hexagon_L2_loadw_locked

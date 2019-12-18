@@ -12762,10 +12762,10 @@ AArch64TargetLowering::shouldExpandAtomicCmpXchgInIR(
   return AtomicExpansionKind::LLSC;
 }
 
-Value *AArch64TargetLowering::emitLoadLinked(IRBuilder<> &Builder, Value *Addr,
+Value *AArch64TargetLowering::emitLoadLinked(IRBuilder<> &Builder, Type *ValTy,
+                                             Value *Addr,
                                              AtomicOrdering Ord) const {
   Module *M = Builder.GetInsertBlock()->getParent()->getParent();
-  Type *ValTy = cast<PointerType>(Addr->getType())->getElementType();
   bool IsAcquire = isAcquireOrStronger(Ord);
 
   // Since i128 isn't legal and intrinsics don't get type-lowered, the ldrexd
@@ -12792,13 +12792,11 @@ Value *AArch64TargetLowering::emitLoadLinked(IRBuilder<> &Builder, Value *Addr,
       IsAcquire ? Intrinsic::aarch64_ldaxr : Intrinsic::aarch64_ldxr;
   Function *Ldxr = Intrinsic::getDeclaration(M, Int, Tys);
 
-  Type *EltTy = cast<PointerType>(Addr->getType())->getElementType();
-
   const DataLayout &DL = M->getDataLayout();
-  IntegerType *IntEltTy = Builder.getIntNTy(DL.getTypeSizeInBits(EltTy));
+  IntegerType *IntEltTy = Builder.getIntNTy(DL.getTypeSizeInBits(ValTy));
   Value *Trunc = Builder.CreateTrunc(Builder.CreateCall(Ldxr, Addr), IntEltTy);
 
-  return Builder.CreateBitCast(Trunc, EltTy);
+  return Builder.CreateBitCast(Trunc, ValTy);
 }
 
 void AArch64TargetLowering::emitAtomicCmpXchgNoStoreLLBalance(
