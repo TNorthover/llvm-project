@@ -2359,17 +2359,15 @@ public:
                       FPMathTag);
   }
 
-  // Deprecated [opaque pointer types]
   CallInst *CreateConstrainedFPCall(
-      Value *Callee, ArrayRef<Value *> Args, const Twine &Name = "",
+      Function *Callee, ArrayRef<Value *> Args, const Twine &Name = "",
       Optional<fp::RoundingMode> Rounding = None,
       Optional<fp::ExceptionBehavior> Except = None) {
     llvm::SmallVector<Value *, 6> UseArgs;
 
     for (auto *OneArg : Args)
       UseArgs.push_back(OneArg);
-    Function *F = cast<Function>(Callee);
-    switch (F->getIntrinsicID()) {
+    switch (Callee->getIntrinsicID()) {
     default:
       UseArgs.push_back(getConstrainedFPRounding(Rounding));
       break;
@@ -2383,9 +2381,7 @@ public:
     }
     UseArgs.push_back(getConstrainedFPExcept(Except));
 
-    CallInst *C = CreateCall(
-        cast<FunctionType>(Callee->getType()->getPointerElementType()), Callee,
-        UseArgs, Name);
+    CallInst *C = CreateCall(Callee, UseArgs, Name);
     setConstrainedFPCallAttr(C);
     return C;
   }
